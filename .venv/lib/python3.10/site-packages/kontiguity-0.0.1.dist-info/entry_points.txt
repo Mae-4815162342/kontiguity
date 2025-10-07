@@ -1,0 +1,2 @@
+[console_scripts]
+kontiguity = kontiguity.cli:cli

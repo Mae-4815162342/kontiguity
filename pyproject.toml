@@ -1,0 +1,94 @@
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[project]
+name = "kontiguity"
+version = "0.0.1"
+authors = [
+  { name="Maelys Delouis", email="maelys.delouis@pasteur.fr" },
+]
+description = "Eukaryotic contigs retrieval and classification tool."
+readme = "README.md"
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: OS Independent",
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+]
+license = {text = "CC BY-NC 4.0"}
+license-files = ["LICENSE"]
+dependencies = [
+  "click",
+  "numpy",
+  "pandas>=1.5.0"
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest",
+    "pytest-cov",
+    "pytest-pylint",
+    "pytest-order",
+    "codecov",
+    "pylint",
+    "ruff",
+]
+dev = [
+    "kontiguity[test]",
+    "hatch",
+    "hatchling", 
+    "mypy",
+    "black",
+    "twine",
+    "ipython"
+]
+
+[tool.pytest.ini_options]
+markers = ["order: mark test to run in a specific order"]
+minversion = "7"
+log_cli_level = "INFO"
+xfail_strict = true
+addopts = [
+    "-ra",
+    "--strict-config",
+    "--strict-markers",
+    "--cov=hicue",
+    "--cov-config=pyproject.toml",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+    "--cov-report=xml",
+]
+filterwarnings = ["ignore::PendingDeprecationWarning"]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["src/kontiguity"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "return NotImplemented",
+    "raise NotImplementedError"
+]
+
+[project.urls]
+Homepage = "https://github.com/Mae-4815162342/kontiguity"
+Issues = "https://github.com/Mae-4815162342/kontiguity/issues"
+
+[project.scripts]
+kontiguity = "kontiguity.cli:cli"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/kontiguity"]
+
+[tool.hatch.build]
+exclude = [
+    "tests",
+    ".venv"
+]
