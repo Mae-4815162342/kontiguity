@@ -26,7 +26,8 @@ license-files = ["LICENSE"]
 dependencies = [
   "click",
   "numpy",
-  "pandas>=1.5.0"
+  "pandas>=1.5.0",
+  "cooler"
 ]
 
 [project.optional-dependencies]
@@ -82,7 +83,7 @@ Homepage = "https://github.com/Mae-4815162342/kontiguity"
 Issues = "https://github.com/Mae-4815162342/kontiguity/issues"
 
 [project.scripts]
-kontiguity = "kontiguity.cli:cli"
+kontiguity = "kontiguity.cli.cli:cli"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/kontiguity"]
