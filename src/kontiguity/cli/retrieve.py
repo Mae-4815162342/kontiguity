@@ -1,5 +1,7 @@
 import click
 
+from .types import *
+
 import kontiguity.retrieve as kretrieve
 
 @click.command("retrieve")
@@ -29,7 +31,7 @@ import kontiguity.retrieve as kretrieve
 )
 @click.option(
     "--wgs",
-    type=str,
+    type=PAIR_LIST,
     help="path to the WGS fastq(s). If paired, provide both fastqs comma-separated."
 )
 @click.option(
@@ -38,5 +40,4 @@ import kontiguity.retrieve as kretrieve
     help='path to a csv table providing the data parameters (Mandatory column heads: ["name", "index", "wgs"]).'
 )
 def retrieve(**args):
-    click.echo(args)
     kretrieve.retrieve(**args)
