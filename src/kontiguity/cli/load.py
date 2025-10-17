@@ -1,5 +1,5 @@
 import click
-
+from .types import *
 import kontiguity.load as kload
 
 @click.command("load")
@@ -7,6 +7,7 @@ import kontiguity.load as kload
     '-n',
     '--name', 
     type=str,
+    default="",
     help="name of the experiment (recommanded: species name. info: spaces are not allowed and will be replaced by _.)"
 )
 @click.option(
@@ -28,18 +29,18 @@ import kontiguity.load as kload
 )
 @click.option(
     "--wgs",
-    type=str,
-    help="path to the WGS fastq(s) OR SRA accession. If paired and local, provide both fastqs comma-separated."
+    type=PAIR_LIST,
+    help="comma-separated list of paths to the WGS fastq(s) OR SRA accession. If paired and local, provide both fastqs separated by : ."
 )
 @click.option(
     "--hic",
-    type=str,
-    help="path to the Hi-C fastq(s) OR SRA accession. If paired and local, provide both fastqs comma-separated."
+    type=PAIR_LIST,
+    help="comma-separated list of paths to the Hi-C fastq(s) OR SRA accession. If paired and local, provide both fastqs separated by : "
 )
 @click.option(
     "--table",
     type=str,
-    help='path to a csv table providing the data parameters (Mandatory column heads: ["name", "ref", "wgs", "hic"]).'
+    help='path to a csv table providing the data parameters (Mandatory column heads: ["name", "ref", "wgs", "hic"]). See test_data/load/test_dataset.csv for format example.'
 )
 @click.option(
     "--dtol",
@@ -47,6 +48,42 @@ import kontiguity.load as kload
     default=False,
     help="if selected, a data table will be created and loaded from the Darwin Tree of Life project database."
 )
+@click.option(
+    "-t",
+    "--threads",
+    type=int,
+    default=8,
+    help='number of threads to launch for each subtask (dflt: 8)'
+)
+@click.option(
+    "--sbatch",
+    is_flag=True,
+    default=False,
+    help="if selected, all the bash script will be launched as individual jobs on a SLURM distribution."
+)
+@click.option(
+    "--sbtach_partition",
+    default='dedicated',
+    type=str,
+    help="partition requested for sbatch."
+)
+@click.option(
+    "--sbtach_qos",
+    default= 'fast',
+    type=str,
+    help="quality of service required for sbatch."
+)
+@click.option(
+    "--sbtach_mem",
+    default='40G',
+    type=str,
+    help="minimum amount of real memory requested for sbatch."
+)
+@click.option(
+    "--sbatch_ncpus",
+    default=30,
+    type=int,
+    help="number of cpus required per task fro sbatch."
+)
 def load(**args):
-    click.echo(args)
     kload.load(**args)
