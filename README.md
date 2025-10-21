@@ -16,6 +16,11 @@ cd kontiguity
 pip install -e .
 ```
 
+**Warning**: the loading distant fastqs requires *sra-toolkit*
+```bash
+sudo apt-get install sra-toolkit # TODO: make env file
+```
+
 ## Presenting pipeline
 
 Kontiguity is based on a pipeline of four subfunctions:
