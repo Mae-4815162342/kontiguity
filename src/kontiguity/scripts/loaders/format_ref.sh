@@ -9,11 +9,17 @@ local_path=$(realpath "$0")
 local_dir="${local_path%/*}"
 
 # filtering chromosomes
-python3 $local_dir/format_ref.py $fasta $sequence_types $outfolder
+if [ ! -f $outfolder/chromosomes.tsv ];then
+    python3 $local_dir/format_ref.py $fasta $sequence_types $outfolder
+else
+    echo Fasta already formated for $species
+fi
 
-# renaming fasta
-filtered_fasta=${outfolder}/genome_filtered.fa
-mv ${outfolder}/genome_filtered.fa ${outfolder}/$species.fa
+if [ ! -f $outfolder/$species.fa ];then
+    # renaming fasta
+    filtered_fasta=${outfolder}/$species.filtered.fa
+    mv ${outfolder}/$species.filtered.fa ${outfolder}/$species.fa
+fi
 
 # creating bowtie index
-bowtie2-build ${filtered_fasta%/*}/$species.fa ${filtered_fasta%/*}/$species
+bowtie2-build -q ${filtered_fasta%/*}/$species.fa ${filtered_fasta%/*}/$species
