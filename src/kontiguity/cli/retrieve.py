@@ -47,6 +47,18 @@ import kontiguity.retrieve as kretrieve
     help='number of threads to launch for each subtask (dflt: 8)'
 )
 @click.option(
+    "--logan",
+    is_flag=True,
+    default=False,
+    help="if selected, will call to the AWS Logan database from SRA accession number to retrieve contigs. If contigs are found, they will not be built from scratch. (dflt: False)"
+)
+@click.option(
+    "--no_tmp",
+    is_flag=True,
+    default=False,
+    help="if selected, all the temporary files will be discarded. (dflt: False)"
+)
+@click.option(
     "--sbatch",
     is_flag=True,
     default=False,

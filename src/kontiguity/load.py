@@ -3,17 +3,41 @@ from kontiguity.workers import ScriptExecutor as scexec
 from kontiguity.workers.DToLScrapper import DToLScrapperScheduler
 from kontiguity.workers.DToLFormater import DToLFormaterScheduler
 
-def create_table(name, ref, WGSs, HICs):
+def create_table(name, ref, WGSs, HICs, no_hic = False, no_wgs = False):
     """Builds a kontiguity dataset table. At least one wgs and hic must be provided."""
     table_dict = []
-    for wgs in WGSs:
-        for hic in HICs:
+    if no_hic and not no_wgs:
+        for wgs in WGSs:
             table_dict.append({
                 "name":name,
                 "ref":ref,
                 "wgs":wgs,
+                "hic":"."
+            })
+    elif no_wgs and not no_hic:
+        for hic in HICs:
+            table_dict.append({
+                "name":name,
+                "ref":ref,
+                "wgs":".",
                 "hic":hic
             })
+    elif no_wgs and no_hic:
+        table_dict.append({
+            "name":name,
+            "ref":ref,
+            "wgs":".",
+            "hic":"."
+        })
+    else:
+        for wgs in WGSs:
+            for hic in HICs:
+                table_dict.append({
+                    "name":name,
+                    "ref":ref,
+                    "wgs":wgs,
+                    "hic":hic
+                })
     if len(table_dict) == 0:
         return None
     return pd.DataFrame.from_dict(table_dict)
@@ -204,6 +228,8 @@ def load(
     hic = [],
     table = None,
     dtol = False,
+    no_wgs = False,
+    no_hic = False,
     threads =  8,
     sbatch = False,
     sbtach_partition = 'dedicated',
@@ -227,7 +253,7 @@ def load(
     elif table is not None:
         data = pd.read_csv(table)
     else:
-        data = create_table(name, ref, wgs, hic)
+        data = create_table(name, ref, wgs, hic, no_hic = no_hic, no_wgs = no_wgs)
         if data is None:
             print("Error: missing WGS or HIC input.")
             return
@@ -249,8 +275,8 @@ def load(
     ## launching loaders
     outtmp = outpath if is_single_name else outfolder
     ref_loaders = load_ref(subset_ref, outpath = outtmp, chroms = chroms, threads = threads, sbatch = sbatch, **sbatch_params)
-    wgs_loaders = load_fastqs(subset_wgs, outpath = outtmp, experiment='wgs', threads = threads, sbatch = sbatch, **sbatch_params)
-    hic_loaders = load_fastqs(subset_hic, outpath = outtmp, experiment='hic', threads = threads, sbatch = sbatch, **sbatch_params)
+    wgs_loaders = load_fastqs(subset_wgs, outpath = outtmp, experiment='wgs', threads = threads, sbatch = sbatch, **sbatch_params) if not no_wgs else []
+    hic_loaders = load_fastqs(subset_hic, outpath = outtmp, experiment='hic', threads = threads, sbatch = sbatch, **sbatch_params) if not no_hic else []
 
     ### joining loaders
     join_workers(ref_loaders)

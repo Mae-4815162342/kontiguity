@@ -1,2 +1,5 @@
 *.fq.gz filter=lfs diff=lfs merge=lfs -text
 *.fast filter=lfs diff=lfs merge=lfs -text
+*.fa filter=lfs diff=lfs merge=lfs -text
+*.bt2 filter=lfs diff=lfs merge=lfs -text
+

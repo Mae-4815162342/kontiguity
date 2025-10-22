@@ -13,7 +13,7 @@ data_path="test_data/load"
 #     --hic $data_path/hic/FG0153_nxq_R1.fq.gz:$data_path/hic/FG0153_nxq_R2.fq.gz
 
 
-# external data
+# # external data
 # kontiguity load \
 #     -n "Vespula vulgaris" \
 #     -o $outpath \
@@ -22,7 +22,8 @@ data_path="test_data/load"
 #     --hic ERR6054673,ERR6054674,ERR6054675
 
 # table test
-kontiguity load -n "table test" -o $outpath --table $data_path/test_dataset.csv
+tmp_out=/media/sardine/data_3/test_results
+kontiguity load -n "table test" -o $tmp_out --table $data_path/test_dataset.csv
 
 # # dtol test
 # kontiguity load -n dtol_test -o $outpath --dtol
