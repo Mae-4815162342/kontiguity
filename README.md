@@ -122,7 +122,25 @@ Output:
 At the outfolder/name location, the following file arborescence is built:
 ```
 outfolder/name
-    └── contigs
+    ├── contigs
+    │   ├── contigs_1
+    │   │   ├── contigs.fa  *retrieved contigs fasta file*
+    │   │   ├── genome.1.bt2    
+    │   │   ├── genome.2.bt2
+    │   │   ├── genome.3.bt2
+    │   │   ├── genome.4.bt2
+    │   │   ├── genome.fa   *newly built genome (reference with contigs), with associated bowtie2 index*
+    │   │   ├── genome.rev.1.bt2
+    │   │   ├── genome.rev.2.bt2
+    │   │   ├── info.txt    *information file*
+    │   │   └── logs
+    │   │       ├── build_log.txt
+    │   │       ├── filter_log.txt
+    │   │       └── logan_log.txt
+    │   ├── contigs_2
+    │   │   └── ...
+    │   └── ...
+    └── contigs_data.csv    *input data with corresponding contigs subfolder (contigs_k)*
 ```
 
 ### Mapping Hi-C
