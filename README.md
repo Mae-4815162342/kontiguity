@@ -16,7 +16,7 @@ cd kontiguity
 pip install -e .
 ```
 
-**Warning**: the loading distant fastqs requires *sra-toolkit*
+**Warning**: the loading of distant fastqs requires *sra-toolkit*
 ```bash
 sudo apt-get install sra-toolkit # TODO: make env file
 ```
@@ -216,5 +216,6 @@ Kontiguity, by M. Delouis, *(unpublished work)*, available at: https://github.co
 ``` 
 
 ## License
+
 
 This project is licensed under the CC BY-NC 4.0 License. See the LICENSE file for details.
