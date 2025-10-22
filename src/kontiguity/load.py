@@ -1,5 +1,7 @@
 from kontiguity.utils.functions import *
 from kontiguity.workers import ScriptExecutor as scexec
+from kontiguity.workers.DToLScrapper import DToLScrapperScheduler
+from kontiguity.workers.DToLFormater import DToLFormaterScheduler
 
 def create_table(name, ref, WGSs, HICs):
     """Builds a kontiguity dataset table. At least one wgs and hic must be provided."""
@@ -16,9 +18,65 @@ def create_table(name, ref, WGSs, HICs):
         return None
     return pd.DataFrame.from_dict(table_dict)
 
-def load_dtol(outpath):
+def load_dtol(nb_per_page=100, threads=8):
     """Retrieves datas from the Darwin Tree of Life and builds a kontiguity dataset table from it."""
-    pass
+
+    # retrieving the count value
+    URL_tmp = f"https://portal.darwintreeoflife.org/api/data_portal?limit=1&offset=0&sort=currentStatus:asc&current_class=kingdom"
+
+    result = None
+    try:
+        result = requests.get(URL_tmp)
+    except:
+        print("Request failed")
+    data = json.loads(result.text)
+    count = data["count"]
+
+    # initialisation
+    offset = 0
+    request_params_queue = Queue()
+    result_queue = Queue()
+    table_queue = Queue()
+
+    # initialazing workers
+    scrappers = [
+        DToLScrapperScheduler(request_params_queue, result_queue)
+        for _ in range(threads)
+    ]
+    formaters = [
+        DToLFormaterScheduler(result_queue, table_queue)
+        for _ in range(threads)
+    ]
+
+    # feeding input queue
+    while offset <= count:
+        request_params_queue.put((nb_per_page, offset))
+        offset += nb_per_page
+        
+    # closing & joining
+    for _ in range(threads):
+        request_params_queue.put("DONE")
+    for scrapper in scrappers:
+        scrapper.join()
+    for _ in range(threads):
+        result_queue.put("DONE")
+    for formater in formaters:
+        formater.join()
+    table_queue.put("DONE")
+
+    # writing formated table
+    table = []
+    while True:
+        try:
+            res = table_queue.get(timeout=10)
+        except Empty:
+            break
+        if res == "DONE":
+            break
+        table.append(res)
+
+    species_df = pd.DataFrame.from_dict(table)    
+    return species_df
 
 def load_ref(ref_dict, outpath, chroms = None, threads = 8, sequence_types = 'chromosome,organelle', sbatch = False, **sbatch_params):
     """Builds the arborescence and eventualy retrieve fastas from the GCA database before building bowtie indexes."""
@@ -57,8 +115,8 @@ def load_ref(ref_dict, outpath, chroms = None, threads = 8, sequence_types = 'ch
 
             # parameters
             fasta_path = f"https://www.ebi.ac.uk/ena/browser/api/fasta/{ref_dict[ref][k]}?download=true&gzip=true" if not os.path.exists(ref_dict[ref][k]) else ref_dict[ref][k]
-            loaded_fasta_path = f"{outfolder}/genome.fa" if not os.path.exists(ref_dict[ref][k]) else ref_dict[ref][k]
             genome_name = species + f"_{k + 1}"
+            loaded_fasta_path = f"{outfolder}/{genome_name}.all_seqs.fa" if not os.path.exists(ref_dict[ref][k]) else ref_dict[ref][k]
 
             # queuing
             genome_queue.put(([
@@ -66,7 +124,7 @@ def load_ref(ref_dict, outpath, chroms = None, threads = 8, sequence_types = 'ch
                 to_format,
                 fasta_path,
                 outfolder,
-                species,
+                genome_name,
                 loaded_fasta_path,
                 outfolder,
                 genome_name,
@@ -105,7 +163,14 @@ def load_fastqs(fastq_dict, outpath, experiment, threads = 8, sbatch = False, **
 
         # parameters
         for k in range(len(fastq_dict[ref])):
-            fastq1, fastq2, paired = fastq_dict[ref][k]
+            if not isinstance(fastq_dict[ref][k], str):
+                fastqs, paired = fastq_dict[ref][k]
+                fastq1 = fastqs[0]
+                fastq2 = fastqs[1] if len(fastqs) > 1 else ""
+            else:
+                fastq1 = fastq_dict[ref][k]
+                fastq2 = ""
+                paired = False
 
             # scripts to call
             to_load1 = "true" if not os.path.isfile(fastq1) else 'none'
@@ -158,7 +223,7 @@ def load(
 
     ## building data tables
     if dtol:
-        data = load_dtol(outfolder)
+        data = load_dtol(threads = threads)
     elif table is not None:
         data = pd.read_csv(table)
     else:
@@ -172,16 +237,20 @@ def load(
     subset_ref = {}
     subset_wgs = {}
     subset_hic = {}
+    is_single_name = True
     for subname in np.unique(data['name']):
+        if is_single_name and name != subname:
+            is_single_name = False
         subset = data[data['name'] == subname]
-        subset_ref[name] = np.unique(subset['ref'])
-        subset_wgs[name] = np.unique(subset['wgs'])
-        subset_hic[name] = np.unique(subset['hic'])
+        subset_ref[subname] = np.unique(subset['ref'])
+        subset_wgs[subname] = np.unique(subset['wgs'])
+        subset_hic[subname] = np.unique(subset['hic'])
 
     ## launching loaders
-    ref_loaders = []#load_ref(subset_ref, outpath = outpath, chroms = chroms, threads = threads, sbatch = sbatch, **sbatch_params)
-    wgs_loaders = load_fastqs(subset_wgs, outpath = outpath, experiment='wgs', threads = threads, sbatch = sbatch, **sbatch_params)
-    hic_loaders = load_fastqs(subset_hic, outpath = outpath, experiment='hic', threads = threads, sbatch = sbatch, **sbatch_params)
+    outtmp = outpath if is_single_name else outfolder
+    ref_loaders = load_ref(subset_ref, outpath = outtmp, chroms = chroms, threads = threads, sbatch = sbatch, **sbatch_params)
+    wgs_loaders = load_fastqs(subset_wgs, outpath = outtmp, experiment='wgs', threads = threads, sbatch = sbatch, **sbatch_params)
+    hic_loaders = load_fastqs(subset_hic, outpath = outtmp, experiment='hic', threads = threads, sbatch = sbatch, **sbatch_params)
 
     ### joining loaders
     join_workers(ref_loaders)

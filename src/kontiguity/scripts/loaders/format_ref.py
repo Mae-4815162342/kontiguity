@@ -26,11 +26,14 @@ class FastaFormater():
         chrom_file = None
         chromosomes = []
         batched_lines = []
-        output_fasta = open(outfolder + "/genome_filtered.fa", "w")
-        has_chrom_info = os.path.isfile(f"{outfolder}/chromosomes.csv")
+        fasta_name = fasta_path.split('/')[-1][:-len(".all_seqs.fa")]
+        output_fasta = open(outfolder + f"/{fasta_name}.filtered.fa", "w")
+        has_chrom_info = os.path.isfile(f"{outfolder}/{fasta_name}.chromosomes.csv") or os.path.isfile(f"{outfolder}/chromosomes.csv")
 
         if has_chrom_info:
-            chrom_file = pd.read_csv(f"{outfolder}/chromosomes.csv")
+            if os.path.isfile(f"{outfolder}/chromosomes.csv"):
+                shutil.copyfile(f"{outfolder}/chromosomes.csv", f"{outfolder}/{fasta_name}.chromosomes.csv")
+            chrom_file = pd.read_csv(f"{outfolder}/{fasta_name}.chromosomes.csv")
             chromosomes = np.unique(chrom_file['id'])
 
         with open(fasta_path, "r") as fasta:
@@ -61,9 +64,9 @@ class FastaFormater():
 
         if not has_chrom_info:
             chromosome_infos_df = pd.DataFrame.from_dict(chromosome_infos)
-            chromosome_infos_df.to_csv(outfolder + "/chromosomes.tsv", sep='\t')
+            chromosome_infos_df.to_csv(outfolder + f"/{fasta_name}.chromosomes.csv", sep=',')
 
-        return outfolder + "/genome_filtered.fa"
+        return outfolder + f"/{fasta_name}.filtered.fa"
 
 fasta = sys.argv[1]
 sequence_types = sys.argv[2].split(',')
