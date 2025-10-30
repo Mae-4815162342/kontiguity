@@ -21,6 +21,13 @@ pip install -e .
 sudo apt-get install sra-toolkit # TODO: make env file
 ```
 
+**WARNING**: Logan requires AWS loader to retrieve contigs. 
+```bash
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+unzip awscliv2.zip
+sudo ./aws/install
+```
+
 ## Presenting pipeline
 
 Kontiguity is based on a pipeline of four subfunctions:
@@ -91,19 +98,49 @@ kontiguity retrieve -n Saccaromyces_cerevisiae -o outfolder --min-size 1500 --ta
 
 Options:
 ```
--n/--name       name of the experiment (recommanded: species name. info: spaces are not allowed and will be replaced by _.)
--o/--outpath    output folder path, created if non-existent.
--i/--index      path to the reference genome index.
---min-size      minimum size of the kept contigs in bp (dflt: 1000).
---wgs           path to the WGS fastq(s).
---table         path to a csv table providing the data parameters (Mandatory column heads: ["name", "index", "wgs"]). 
+-n, --name TEXT          name of the experiment (recommanded: species name.
+                        info: spaces are not allowed and will be replaced
+                        by _.)
+-o, --outpath TEXT       output folder path, created if non-existent
+-i, --index TEXT         path to the reference genome index.
+--min-size INTEGER       minimum size of the kept contigs in bp.
+--wgs PAIR_LIST          path to the WGS fastq(s). If paired, provide both
+                        fastqs comma-separated.
+--table TEXT             path to a csv table providing the data parameters
+                        (Mandatory column heads: ["name", "index", "wgs"]).
+-t, --threads INTEGER    number of threads to launch for each subtask (dflt:
+                        8)
+--logan                  if selected, will call to the AWS Logan database
+                        from SRA accession number to retrieve contigs. If
+                        contigs are found, they will not be built from
+                        scratch. (dflt: False)
+--no_tmp                 if selected, all the temporary files will be
+                        discarded. (dflt: False)
 ```
 
 Output:
 At the outfolder/name location, the following file arborescence is built:
 ```
 outfolder/name
-    └── contigs
+    ├── contigs
+    │   ├── contigs_1
+    │   │   ├── contigs.fa  *retrieved contigs fasta file*
+    │   │   ├── genome.1.bt2    
+    │   │   ├── genome.2.bt2
+    │   │   ├── genome.3.bt2
+    │   │   ├── genome.4.bt2
+    │   │   ├── genome.fa   *newly built genome (reference with contigs), with associated bowtie2 index*
+    │   │   ├── genome.rev.1.bt2
+    │   │   ├── genome.rev.2.bt2
+    │   │   ├── info.txt    *information file*
+    │   │   └── logs
+    │   │       ├── build_log.txt
+    │   │       ├── filter_log.txt
+    │   │       └── logan_log.txt
+    │   ├── contigs_2
+    │   │   └── ...
+    │   └── ...
+    └── contigs_data.csv    *input data with corresponding contigs subfolder (contigs_k)*
 ```
 
 ### Mapping Hi-C
@@ -190,6 +227,22 @@ outfolder/name
     └── classification
 ```
 TODO re-write with real test data
+
+### SLURM options
+
+Each command can be launched on a SLURM cluster if the *--sbatch* option is provided. The command will build its script with SBATCH parameters and be launched with **sbatch** instead of **bash**. The following parameters can be provided:
+
+```
+--sbatch                 if selected, all the bash script will be launched
+                        as individual jobs on a SLURM distribution.
+--sbtach_partition TEXT  partition requested for sbatch.
+--sbtach_qos TEXT        quality of service required for sbatch.
+--sbtach_mem TEXT        minimum amount of real memory requested for sbatch.
+--sbatch_ncpus INTEGER   number of cpus required per task fro sbatch.
+```
+
+Please note that as *fasterq-dump* internet connection is not supported on SLURM clusters by default without specific settings built by administrators, the loading of fastq files (**load** command) will not be executed in cluster nodes. Users of Kontiguity are welcome to customize source code in order to launch this operation on supporting clusters.
+If your integration for your local cluster can be added as a set of SBATCH options, please feel free to PR your branch or open an issue with the required specification.
 
 ## Outputs
 

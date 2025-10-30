@@ -49,6 +49,18 @@ import kontiguity.load as kload
     help="if selected, a data table will be created and loaded from the Darwin Tree of Life project database."
 )
 @click.option(
+    "--no_wgs",
+    is_flag=True,
+    default=False,
+    help="if selected, the WGS data is not loaded nor required. Usefull for calling Logan in contigs reconstruction (see retrieve command)."
+)
+@click.option(
+    "--no_hic",
+    is_flag=True,
+    default=False,
+    help="if selected, the Hi-C data is not loaded nor required. Usefull when using kontiguity for contigs retrieval only."
+)
+@click.option(
     "-t",
     "--threads",
     type=int,

@@ -41,7 +41,7 @@ def write_script(header, subscripts, outpath, name = "script"):
             nb_scripts += 1
             arguments = ""
             for arg in range(1,args + 1):
-                script.write(f"\tparam_{arg}=${nb_args}\n")
+                script.write(f"\tparam_{arg}=$" + "{" + f"{nb_args}" + "}\n")
                 arguments += f"\t$param_{arg} "
                 nb_args += 1
             script.write(f"\tbash {subscript} {arguments}\n")

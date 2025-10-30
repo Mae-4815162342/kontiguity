@@ -22,4 +22,4 @@ if [ ! -f $outfolder/$species.fa ];then
 fi
 
 # creating bowtie index
-bowtie2-build -q ${filtered_fasta%/*}/$species.fa ${filtered_fasta%/*}/$species
+bowtie2-build -q ${outfolder}/$species.fa ${outfolder}/$species
