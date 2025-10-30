@@ -4,6 +4,7 @@ outpath="test_results"
 data_path="test_data/load"
 
 # # local data
+# bowtie2-build ${data_path}/S_cerevisiae.fna ${outpath}/S_cerevisiae
 # kontiguity retrieve \
 #     -n S_cerevisiae \
 #     -o test_results \
