@@ -23,16 +23,7 @@ data_path="test_data/load"
 # kontiguity retrieve \
 #     -n "Vespula vulgaris" \
 #     -o $outpath \
-#     -r GCA_905475345.1 \
-#     --wgs ERR6054670,ERR6054671,ERR6054672 \
-#     --no_hic
-
-# kontiguity retrieve \
-#     -n "Vespula vulgaris" \
-#     -o $outpath \
 #     -i Vespula_vulgaris_1 \
-#     --wgs ERR6054670,ERR6054671,ERR6054672 \
-#     --no_tmp
 #     --wgs ERR6054670,ERR6054671,ERR6054672 \
 #     --no_tmp
 
@@ -40,8 +31,7 @@ data_path="test_data/load"
 tmp_out=/media/sardine/data_3/test_results
 kontiguity retrieve -n "table test" -o $tmp_out --table $data_path/test_dataset.csv
 
-# logan test
-# logan test
+# # logan test
 # kontiguity load \
 #     -n "Vespula vulgaris" \
 #     -o $outpath \

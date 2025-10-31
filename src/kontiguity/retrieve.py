@@ -71,9 +71,9 @@ def retrieve_contigs(retrieval_dict, outpath, logan = False, no_tmp = False, thr
             to_build = "true"
 
             # fastq check
-            ## if it is not a path to a file, will be looked for in the kontiguity arborescence. If still not found, will return the ref which will be considered as a SRA id for Logan."""
+            ## if it is not a path to a file, will be looked for in the kontiguity arborescence. If still not found, will return the ref which will be considered as a SRA id for Logan.
             paired_fastq = f"{outpath}/{species}/dataset/wgs/{row_data['fastq1']}_1.fastq"
-            single_fastq = f"{outpath}/{species}/dataset/wgs/{row_data['fastq1']}_1.fastq"
+            single_fastq = f"{outpath}/{species}/dataset/wgs/{row_data['fastq1']}.fastq"
 
             if os.path.exists(paired_fastq):
                 is_paired = "true"

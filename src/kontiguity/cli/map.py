@@ -1,5 +1,7 @@
 import click
 
+from .types import *
+
 import kontiguity.map as kmap
 
 @click.command("map")
@@ -23,7 +25,7 @@ import kontiguity.map as kmap
 )
 @click.option(
     "--hic",
-    type=str,
+    type=PAIR_LIST,
     help="path to the Hi-C fastq(s). If paired, provide both fastqs comma-separated."
 )
 @click.option(
@@ -39,16 +41,58 @@ import kontiguity.map as kmap
     help='comma separated bin sizes in bp in which each map is generated (dflt: 10000).'
 )
 @click.option(
-    "--zoomify",
-    is_flag=True,
-    default=False,
-    help="if provided will produce a mcool file instead of separated cools. In such case, the smalest binning in the binnings list must be a common divider of the other values (e.g. 1000,2000,5000)."
+    "--format",
+    type=click.Choice(["cool", "mcool"]),
+    default="cool",
+    help='output format of generated maps in each binning: [cool/mcool] (dflt: cool).'
 )
 @click.option(
     "--table",
     type=str,
     help='path to a csv table providing the data parameters (Mandatory column heads: ["name", "index", "hic", "enzymes", "binnings"]).'
 )
+@click.option(
+    "-t",
+    "--threads",
+    type=int,
+    default=8,
+    help='number of threads to launch for each subtask (dflt: 8)'
+)
+@click.option(
+    "--no_tmp",
+    is_flag=True,
+    default=False,
+    help="if selected, all the temporary files will be discarded. (dflt: False)"
+)
+@click.option(
+    "--sbatch",
+    is_flag=True,
+    default=False,
+    help="if selected, all the bash script will be launched as individual jobs on a SLURM distribution."
+)
+@click.option(
+    "--sbtach_partition",
+    default='dedicated',
+    type=str,
+    help="partition requested for sbatch."
+)
+@click.option(
+    "--sbtach_qos",
+    default= 'fast',
+    type=str,
+    help="quality of service required for sbatch."
+)
+@click.option(
+    "--sbtach_mem",
+    default='40G',
+    type=str,
+    help="minimum amount of real memory requested for sbatch."
+)
+@click.option(
+    "--sbatch_ncpus",
+    default=30,
+    type=int,
+    help="number of cpus required per task fro sbatch."
+)
 def map(**args):
-    click.echo(args)
     kmap.map(**args)
