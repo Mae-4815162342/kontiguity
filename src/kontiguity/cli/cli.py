@@ -1,6 +1,7 @@
 import click
 
 from . import (
+    describe,
     load,
     retrieve,
     map,
@@ -17,6 +18,7 @@ cli.add_command(load.load)
 cli.add_command(retrieve.retrieve)
 cli.add_command(map.map)
 cli.add_command(classify.classify)
+cli.add_command(describe.describe)
 cli.add_command(pipeline.pipeline)
 
 if __name__ == "__main__":
