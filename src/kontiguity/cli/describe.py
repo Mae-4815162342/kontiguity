@@ -17,8 +17,48 @@ import kontiguity.describe as kdescribe
 )
 @click.option(
     "--chroms",
+    default = "",
     type=str,
-    help='path to a chromosome information file detailing the type of each sequence present in the reference (Mandatory column heads: ["id", "sequence_type", "sequence_name"]). "sequence_type" must be in the ENA database format : ["chromosome", "organelle", ...]. Required only for a local fasta, GCA referenced genomes will have the chromosome.tsv generated.'
+    help='comma-separated chromosome list.'
+)
+@click.option(
+    "--mitochondria",
+    type=str,
+    help="mitochondria (or other organelle) reference. If provided, the organelle will be considered in the signals display."
+)
+@click.option(
+    "--min_chrom_size",
+    default = 100000,
+    type=int,
+    help="Chromosome minimal size for display."
+)
+@click.option(
+    "--chromstart",
+    type=str,
+    default = "NC_",
+    help='Three first character of the chromosome identifier (dftl: "NC_"). All the sequences which id start with chromstart will be considered as chromosomes.'
+)
+@click.option(
+    "--contigs",
+    default = "",
+    type=str,
+    help="comma-separated list of the contigs to describe. If not provided, will evaluate all the contigs that are not identified as chromosomes with a total trans-coverage of at least 1."
+)
+@click.option(
+    "--fasta",
+    default = "",
+    type=str,
+    help="path to the reference genome sequence file (fasta format)."
+)
+@click.option(
+    "--gff",
+    type=str,
+    help="path to the reference genome annotation file (GFF/GFF3 format)."
+)
+@click.option(
+    "--tracks",
+    type=str,
+    help="path to a track file (bigwig format)."
 )
 @click.option(
     "--mcool",
@@ -26,32 +66,56 @@ import kontiguity.describe as kdescribe
     help="path to mcool file of contigs to classify. The program will compute and classify the contact profiles of contigs not referenced in the chromosome info file. Requires --binning."
 )
 @click.option(
-    "--binnings",
-    type=str,
+    "--binning",
+    type=int,
     default="10000",
-    help='comma separated bin sizes in bp in which each map is generated (dflt: 10000).'
+    help='Binning size for descriptive statistic of HiC generation (dflt: 10000).'
 )
 @click.option(
     "--cool",
     type=str,
-    help="ppath to cool file of contigs to classify. The program will compute and classify the contact profiles of contigs not referenced in the chromosome info file."
-)
-@click.option(
-    "--model",
-    type=str,
-    default="models/model.hdf5",
-    help="path to a classifier in hdf5 format (dflt: provided model)."
-)
-@click.option(
-    "--param_file",
-    type=str,
-    default="models/model.json",
-    help="path to a json file containing the data preprodessing and model parameters (dflt: model params file)"
+    help="path to cool file of contigs to classify. The program will compute the descriptive statistics of all contigs not referenced in the chromosome info file if the desired contigs are not provided via the --contigs option."
 )
 @click.option(
     "--table",
     type=str,
     help='path to a csv table providing the data parameters (Mandatory column heads: ["name", "ref", "wgs", "hic"]).'
+)
+@click.option(
+    "--formats",
+    type=str,
+    default="pdf",
+    help='comma-separated format list for output (image format required).',
+)
+@click.option(
+    "--sbatch",
+    is_flag=True,
+    default=False,
+    help="if selected, all the bash script will be launched as individual jobs on a SLURM distribution."
+)
+@click.option(
+    "--sbtach_partition",
+    default='dedicated',
+    type=str,
+    help="partition requested for sbatch."
+)
+@click.option(
+    "--sbtach_qos",
+    default= 'fast',
+    type=str,
+    help="quality of service required for sbatch."
+)
+@click.option(
+    "--sbtach_mem",
+    default='40G',
+    type=str,
+    help="minimum amount of real memory requested for sbatch."
+)
+@click.option(
+    "--sbatch_ncpus",
+    default=30,
+    type=int,
+    help="number of cpus required per task fro sbatch."
 )
 def describe(**args):
     kdescribe.describe(**args)
