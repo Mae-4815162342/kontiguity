@@ -48,3 +48,24 @@ def write_script(header, subscripts, outpath, name = "script"):
             script.write('fi\n\n')
 
     return script_path
+
+def parse_fasta(path):
+    """Parses fasta file."""
+    sequences = {}
+    current_id = None
+    current_seq = []
+    with open(path, "r") as fh:
+        for line in fh:
+            line = line.rstrip()
+            if not line:
+                continue
+            if line.startswith(">"):
+                if current_id is not None:
+                    sequences[current_id] = "".join(current_seq)
+                current_id = line[1:].split()[0]
+                current_seq = []
+            else:
+                current_seq.append(line)
+        if current_id is not None:
+            sequences[current_id] = "".join(current_seq)
+    return sequences
