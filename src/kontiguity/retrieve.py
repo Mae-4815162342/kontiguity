@@ -7,9 +7,9 @@ def create_table(name, index, WGSs, min_size = 1000):
         {
             "name":name,
             "index":index,
-            "fastq1":wgs[0],
-            "fastq2":wgs[1] if paired else "",
-            "is_paired":paired,
+            "fastq1_wgs":wgs[0],
+            "fastq2_wgs":wgs[1] if paired else "",
+            "is_paired_wgs":paired,
             "min_size":min_size
         }
         for wgs, paired in WGSs
@@ -65,7 +65,7 @@ def retrieve_contigs(retrieval_dict, outpath, logan = False, no_tmp = False, thr
 
             # logan params
             to_logan = "true" if logan else "false"
-            accession = row_data["fastq1"].split("/")[-1].split('.')[0].split('_')[0] # retrieving the SRA id in the fastq name if provided
+            accession = row_data["fastq1_wgs"].split("/")[-1].split('.')[0].split('_')[0] # retrieving the SRA id in the fastq name if provided
 
             # building params
             to_build = "true"
@@ -86,10 +86,10 @@ def retrieve_contigs(retrieval_dict, outpath, logan = False, no_tmp = False, thr
                 fastq_R2 = "."
                 fastq = single_fastq
             else:
-                fastq_R1= row_data["fastq1"] if row_data["is_paired"] else "."
-                fastq_R2= row_data["fastq2"] if row_data["is_paired"] else "."
-                fastq = row_data["fastq1"] if not row_data["is_paired"] else "."
-                is_paired = "true" if row_data["is_paired"] else "false"
+                fastq_R1= row_data["fastq1_wgs"] if row_data["is_paired_wgs"] else "."
+                fastq_R2= row_data["fastq2_wgs"] if row_data["is_paired_wgs"] else "."
+                fastq = row_data["fastq1_wgs"] if not row_data["is_paired_wgs"] else "."
+                is_paired = "true" if row_data["is_paired_wgs"] else "false"
 
             # filtering params
             to_filter = "true"
@@ -140,7 +140,8 @@ def retrieve(
     sbtach_partition = 'dedicated',
     sbtach_qos = 'fast',
     sbtach_mem = '40G',
-    sbatch_ncpus = 30
+    sbatch_ncpus = 30,
+    **kwargs
 ):
     sbatch_params = {
         '--partition': sbtach_partition,
@@ -160,15 +161,13 @@ def retrieve(
         if data is None:
             print("Error: missing WGS or HIC input.")
             return
-    data["contigs"] = [f"contigs_{k + 1}" for k in range(len(data))]
+    data["contigs"] = [f"contigs_{k + 1}" for k in range(len(data))] if "contigs" not in data.columns else data["contigs"]
     data.to_csv(f"{outfolder}/contigs_data.csv", index=False)
     
     ## retrieving unique name subset
     subset_retrieval = {}
-    is_single_name = True
+    is_single_name = len(np.unique(data['name'])) == 1
     for subname in np.unique(data['name']):
-        if is_single_name and name != subname:
-            is_single_name = False
         subset_retrieval[subname] = data[data['name'] == subname]
 
     ## launching retrievers

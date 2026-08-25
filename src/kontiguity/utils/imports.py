@@ -3,6 +3,11 @@ from collections import defaultdict
 import pandas as pd
 import numpy as np
 
+# ignoring warnings for median and mean in numpy (expected for Hi-C data)
+import warnings
+warnings.filterwarnings("ignore", category=RuntimeWarning, message="All-NaN slice encountered")
+warnings.filterwarnings("ignore", category=RuntimeWarning, message="Mean of empty slice")
+
 # system
 import subprocess
 import datetime
