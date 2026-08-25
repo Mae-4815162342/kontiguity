@@ -3,6 +3,21 @@ from kontiguity.utils.functions import *
 from kontiguity.utils.displays import *
 from kontiguity.utils.imports import *
 
+
+def create_table(name, index, chroms, cool, mcool, binnings):
+    rows = []
+    for binning in binnings:
+        row = {
+            "name":name,
+            "index":index,
+            "chroms":chroms,
+            "cool":cool,
+            "mcool":mcool,
+            "binning":binning,
+        }
+        rows.append(row)
+    return pd.DataFrame.from_dict(rows)
+
 def get_trans_cov(cool, contig):
     """Returns the trans coverage of a contig in the cool matrix."""
     coverage = 0
@@ -10,6 +25,31 @@ def get_trans_cov(cool, contig):
         if chrom != contig:
             coverage += np.nansum(cool.matrix(balance = False).fetch(chrom, contig))
     return coverage
+
+def parse_chroms(chroms):
+    """
+    Parses the chromosome file located at chroms, csv table with mandatory columns ["id", "sequence_type", "sequence_name"]. "sequence_type" must be in the ENA database format : ["chromosome", "organelle", ...])
+    Returns the chromosome list, and the organelles list if at least one is present (or [] otherwise).
+    """
+    if not os.path.exists(chroms):
+        return [], ""
+    chromosomes = []
+    organelles = []
+    chroms_table = pd.read_csv(chroms, header = 0)
+    for _, row in chroms_table.iterrows():
+        if row["sequence_type"] == "chromosome":
+            chromosomes.append(row["id"])
+        elif row["sequence_type"] == "organelle":
+            organelles.append(row["id"])
+    return chromosomes, organelles
+
+def get_fasta_path(index):
+    """From the index path, finds the fasta file of the reference genome. If not found, returns an empty string."""
+    for suffix in ["fa", "fna", "fasta"]:
+        tmp_path = f"{index}.{suffix}"
+        if os.path.exists(tmp_path):
+            return tmp_path
+    return ""
 
 # Hi-C data methods
 def get_chrom_matrix(cool, balance = True):
@@ -196,27 +236,45 @@ def get_GCs(fasta, chromosomes, contigs):
             average_genome.append(GC)
     return GC_contigs, np.nanmedian(average_genome)
 
+def append_signals(table, signals, contig, add_chromosomes = False):
+    """Appends the signals of contig to the table formated as ["Contig", "Signal type", "Normalization", "Bin1", "Bin2", ...]"""
+    contig_table = ["Contig"] + (["Chromosome", "Mitochondria"] if add_chromosomes else [])
+    for norm in ["Raw", "Normalized"]:
+        for type in ["Hi-C", "Computed"]:
+            for contig_name in contig_table:
+                if contig_name not in signals[norm][type]:
+                    continue
+                signal = signals[norm][type][contig_name]
+                table.append({
+                    "Contig": contig_name if contig_name != "Contig" else contig,
+                    "Signal type": type,
+                    "Normalization": norm,
+                } | {
+                    f"Bin{i}": signal[i] for i in range(len(signal))
+                })
+    return table
+
 def describe(
     name = "",
     outpath = "",
     chroms = "",
+    chroms_list = "",
     mitochondria = "",
     chromstart = "NC_",
     min_chrom_size = 100000,
     contigs = "",
-    fasta = None,
-    gff = None,
-    tracks = None,
+    index = None,
     mcool = None,
-    binning = "10000",
+    binnings = [10000],
     cool = None,
     table = None,
-    formats = "pdf",
+    formats = ["pdf"],
     sbatch = False,
     sbtach_partition = 'dedicated',
     sbtach_qos = 'fast',
     sbtach_mem = '40G',
-    sbatch_ncpus = 30
+    sbatch_ncpus = 30,
+    **kwargs
 ):
     sbatch_params = {
         '--partition': sbtach_partition,
@@ -225,59 +283,103 @@ def describe(
         '-c': sbatch_ncpus
     }
 
-    outfolder = f"{outpath}/{name.replace(' ', '_')}/describe"
-    build_arborescence(outfolder)
+    build_arborescence(outpath)
 
-    cool = cooler.Cooler(cool if cool is not None else f"{mcool}::resolutions/{binning}")
-    contigs = contigs.split(",")
-    if len(chroms) == 0:
-        chromosomes = [ chrom for chrom in list(cool.chromsizes.keys()) if chrom[:3] == chromstart and chrom not in contigs and cool.chromsizes[chrom] >= min_chrom_size] 
-    else: 
-        chromosomes = [ chrom for chrom in chroms.split(",") if cool.chromsizes[chrom] >= min_chrom_size ]
-
-    ## selecting contigs interacting with the genome (more likely to be intra-nuclear)
-    contig_selection = []
-    for contig in cool.chromsizes.keys():
-        if contig in chromosomes or contig not in contigs:
-            continue
-        trans_coverage = get_trans_cov(cool, contig)
-        if trans_coverage > 0:
-            contig_selection.append(contig)
-    # sequence_selection = chromosomes + contig_selection
-
-    ## computing circularity of contigs if the fasta file is provided
-    circulars = None
-    GC_contigs = {}
-    GC_global = np.nan
-    if os.path.exists(fasta):
-        circulars = get_circulars(fasta, selection = contig_selection, min_overlap = 20, max_overlap = 100, max_mismatch_rate =  0.2)
-        GC_contigs, GC_global = get_GCs(fasta, chromosomes, contig_selection)
-
-    for contig in contig_selection:
-        global_data = {
-            "Contig":contig,
-            "Species": name,
-            "Chromosome":chromosomes[0],
-            "Contigs": contig_selection,
-            "Chromosomes": chromosomes, 
-            "Mitochondria": mitochondria,
-            "Length": cool.chromsizes[contig],
-            "GC": f"{GC_contigs[contig]} (average: {GC_global})" if contig in GC_contigs else "",
-            "global_GC": GC_global, 
-            "Binning": cool.binsize,
-            "Circularity": "Not computed" if circulars is None else circulars[contig] if contig in circulars else "No overlap detected"
-        }
+    if table is not None:
+        data = pd.read_csv(table)
+    else:
+        data = create_table(name, index, chroms, cool, mcool, binnings)
+        if data is None:
+            print("Error: missing inputs.")
+            return
         
-        hic_data = global_data | {
-            "Chrom_matrix": get_chrom_matrix(cool, binning),
-            "Mini_matrices": get_mini_matrices(cool, chrom_list = chromosomes + [contig]),
-            "Computed_contacts": get_computed_contacts(cool, chromosomes, contig),
-            "Signals": get_contact_signals(cool, chromosomes, chromosomes[0], contig, mitochondria=mitochondria),
-            "Coverage": get_coverage_hic(cool, contig),
-            "Estimated_copies": get_copies(cool, chromosomes[0], contig)
-        }
-        tracks_data = {}
-        sequence_data = {}
+    data["description"] = [f"description_{k + 1}" for k in range(len(data))]
+    data.to_csv(f"{outpath}/describe_data.csv", index=False)
 
-        ## global display
-        build_display(contig, hic_data, tracks_data, sequence_data, outpath = outfolder, formats = formats.split(","))
+    for _, row in data.iterrows():
+        ## building path
+        outfolder = f"{outpath}/{row['name'].replace(' ', '_')}/describe"
+        build_arborescence(outfolder)
+
+        binnings = np.array(row['binnings'].split(';')).astype(int) if 'binning' not in row else [row['binning']] 
+
+        for binning in binnings:
+            ## retrieving cool information
+            cool_path = row["cool"] if not pd.isna(row["cool"]) else f"{row['mcool']}::resolutions/{binning}"
+            if not os.path.exists(cool_path):
+                cool_path = f"{outpath}/{row['name'].replace(' ', '_')}/maps/{cool_path}"
+            cool = cooler.Cooler(cool_path)
+
+            ## building chromosome, organelles and contigs sets
+            required_contigs = contigs.split(",")
+            chromosomes = []
+            organelles = []
+            chroms = row['chroms'] if 'chroms' in row else chroms
+            if len(chroms) != 0:
+                chromosomes, organelles = parse_chroms(chroms)
+                mitochondria = organelles[0] if len(organelles) >= 1 else ""
+            if len(chromosomes) == 0:
+                if len(chroms_list) == 0:
+                    chromosomes = [ chrom for chrom in list(cool.chromsizes.keys()) if chrom[:len(chromstart)] == chromstart and chrom not in contigs]
+                else: 
+                    chromosomes = [ chrom for chrom in chroms_list.split(",")]
+            if len(required_contigs) == 0 or len(required_contigs[0]) == 0:
+                required_contigs = [sequence for sequence in cool.chromnames if sequence not in chromosomes and sequence not in organelles]
+            chromosomes = [chrom for chrom in chromosomes if cool.chromsizes[chrom] >= min_chrom_size ]
+
+            ## selecting contigs interacting with the genome (more likely to be intra-nuclear)
+            contig_selection = []
+            for contig in cool.chromsizes.keys():
+                if contig in chromosomes or contig not in required_contigs:
+                    continue
+                trans_coverage = get_trans_cov(cool, contig)
+                if trans_coverage > 0:
+                    contig_selection.append(contig)
+            # sequence_selection = chromosomes + contig_selection
+
+            ## computing circularity of contigs if the fasta file is provided
+            circulars = None
+            GC_contigs = {}
+            GC_global = np.nan
+            fasta = get_fasta_path(row["index"])
+            if os.path.exists(fasta):
+                circulars = get_circulars(fasta, selection = contig_selection, min_overlap = 20, max_overlap = 100, max_mismatch_rate =  0.2)
+                GC_contigs, GC_global = get_GCs(fasta, chromosomes, contig_selection)
+
+            global_signals = []
+            for contig in contig_selection:
+                global_data = {
+                    "Contig":contig,
+                    "Species": row["name"],
+                    "Chromosome":chromosomes[0],
+                    "Contigs": contig_selection,
+                    "Chromosomes": chromosomes, 
+                    "Mitochondria": mitochondria,
+                    "Length": cool.chromsizes[contig],
+                    "GC": f"{GC_contigs[contig]} (average: {GC_global})" if contig in GC_contigs else "",
+                    "global_GC": GC_global, 
+                    "Binning": cool.binsize,
+                    "Circularity": "Not computed" if circulars is None else circulars[contig] if contig in circulars else "No overlap detected"
+                }
+            
+                hic_data = global_data | {
+                    "Chrom_matrix": get_chrom_matrix(cool),
+                    "Mini_matrices": get_mini_matrices(cool, chrom_list = chromosomes + [contig]),
+                    "Computed_contacts": get_computed_contacts(cool, chromosomes, contig),
+                    "Signals": get_contact_signals(cool, chromosomes, chromosomes[0], contig, mitochondria=mitochondria),
+                    "Coverage": get_coverage_hic(cool, contig),
+                    "Estimated_copies": get_copies(cool, chromosomes[0], contig),
+                    "Mapping":row["mapping"] if "mapping" in data.columns else ""
+                }
+                tracks_data = {}
+                sequence_data = {}
+
+                ## adding current signals to global_signals
+                global_signals = append_signals(global_signals, hic_data["Signals"], contig, add_chromosomes = (len(global_signals) == 0))
+
+                ## global display
+                build_display(contig, hic_data, tracks_data, sequence_data, outpath = outfolder, formats = row["formats"].split(";") if "formats" in row else formats)
+            
+            ## writting signals
+            signals_df = pd.DataFrame.from_dict(global_signals)
+            signals_df.to_csv(f"{outfolder}/signals.{int(binning // 1000)}kb.csv")
