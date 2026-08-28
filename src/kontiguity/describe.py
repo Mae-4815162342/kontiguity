@@ -269,6 +269,8 @@ def describe(
     cool = None,
     table = None,
     formats = ["pdf"],
+    mini_only = False,
+    no_mini = False,
     sbatch = False,
     sbtach_partition = 'dedicated',
     sbtach_qos = 'fast',
@@ -301,12 +303,14 @@ def describe(
         outfolder = f"{outpath}/{row['name'].replace(' ', '_')}/describe"
         build_arborescence(outfolder)
 
-        binnings = np.array(row['binnings'].split(';')).astype(int) if 'binning' not in row else [row['binning']] 
+        binnings = np.array(str(row['binnings']).split(';')).astype(int) if 'binning' not in row else [row['binning']] 
+        current_formats = row["formats"].split(";") if "formats" in row else formats
+        mini_matrices_plotted = False
 
         for binning in binnings:
             ## retrieving cool information
-            cool_path = row["cool"] if not pd.isna(row["cool"]) else f"{row['mcool']}::resolutions/{binning}"
-            if not os.path.exists(cool_path):
+            cool_path = row["cool"] if not pd.isna(row["cool"]) else f"{row['mcool']}::resolutions/{int(binning)}"
+            if not cooler.fileops.is_cooler(cool_path):
                 cool_path = f"{outpath}/{row['name'].replace(' ', '_')}/maps/{cool_path}"
             cool = cooler.Cooler(cool_path)
 
@@ -315,9 +319,8 @@ def describe(
             chromosomes = []
             organelles = []
             chroms = row['chroms'] if 'chroms' in row else chroms
-            if len(chroms) != 0:
+            if not pd.isna(chroms) and len(chroms) != 0:
                 chromosomes, organelles = parse_chroms(chroms)
-                mitochondria = organelles[0] if len(organelles) >= 1 else ""
             if len(chromosomes) == 0:
                 if len(chroms_list) == 0:
                     chromosomes = [ chrom for chrom in list(cool.chromsizes.keys()) if chrom[:len(chromstart)] == chromstart and chrom not in contigs]
@@ -326,6 +329,7 @@ def describe(
             if len(required_contigs) == 0 or len(required_contigs[0]) == 0:
                 required_contigs = [sequence for sequence in cool.chromnames if sequence not in chromosomes and sequence not in organelles]
             chromosomes = [chrom for chrom in chromosomes if cool.chromsizes[chrom] >= min_chrom_size ]
+            mitochondria = organelles[0] if len(organelles) >= 1 else ""
 
             ## selecting contigs interacting with the genome (more likely to be intra-nuclear)
             contig_selection = []
@@ -335,7 +339,7 @@ def describe(
                 trans_coverage = get_trans_cov(cool, contig)
                 if trans_coverage > 0:
                     contig_selection.append(contig)
-            # sequence_selection = chromosomes + contig_selection
+            sequence_selection = chromosomes + contig_selection if len(mitochondria) == 0 else chromosomes + [mitochondria] + contig_selection
 
             ## computing circularity of contigs if the fasta file is provided
             circulars = None
@@ -345,6 +349,14 @@ def describe(
             if os.path.exists(fasta):
                 circulars = get_circulars(fasta, selection = contig_selection, min_overlap = 20, max_overlap = 100, max_mismatch_rate =  0.2)
                 GC_contigs, GC_global = get_GCs(fasta, chromosomes, contig_selection)
+
+            if not mini_matrices_plotted and not no_mini:
+                mini_matrix_raw, mini_matrix_norm = get_mini_matrices(cool, chrom_list = sequence_selection)
+                plot_mini_matrices(mini_matrix_raw, mini_matrix_norm, chromosomes, contig_selection, row["mapping"] if "mapping" in data.columns else "", mitochondria = mitochondria, outpath = outfolder, formats = current_formats)
+                mini_matrices_plotted = True # are plotted only once as they don't depend on binning
+
+            if mini_only:
+                break
 
             global_signals = []
             for contig in contig_selection:
@@ -361,10 +373,11 @@ def describe(
                     "Binning": cool.binsize,
                     "Circularity": "Not computed" if circulars is None else circulars[contig] if contig in circulars else "No overlap detected"
                 }
-            
+
+                sequence_tmp_list = chromosomes + [contig] if len(mitochondria) == 0 else chromosomes + [mitochondria] + [contig]
                 hic_data = global_data | {
                     "Chrom_matrix": get_chrom_matrix(cool),
-                    "Mini_matrices": get_mini_matrices(cool, chrom_list = chromosomes + [contig]),
+                    "Mini_matrices": get_mini_matrices(cool, chrom_list = sequence_tmp_list),
                     "Computed_contacts": get_computed_contacts(cool, chromosomes, contig),
                     "Signals": get_contact_signals(cool, chromosomes, chromosomes[0], contig, mitochondria=mitochondria),
                     "Coverage": get_coverage_hic(cool, contig),
@@ -378,7 +391,7 @@ def describe(
                 global_signals = append_signals(global_signals, hic_data["Signals"], contig, add_chromosomes = (len(global_signals) == 0))
 
                 ## global display
-                build_display(contig, hic_data, tracks_data, sequence_data, outpath = outfolder, formats = row["formats"].split(";") if "formats" in row else formats)
+                build_display(contig, hic_data, tracks_data, sequence_data, outpath = outfolder, formats = current_formats)
             
             ## writting signals
             signals_df = pd.DataFrame.from_dict(global_signals)

@@ -16,27 +16,32 @@ def next(step):
 def build_dataset(name, **args):
         """Builds global parameter table for each """
         binnings = np.array(args["binnings"]).astype("str")
-        wgs, wgs_pairing = args["wgs"][0]
-        hic, hic_pairing = args["hic"][0]
-        rows = [{
-            "name":name,
-            "index":args['index'],
-            "fastq1_wgs": wgs[0], # retrieve params
-            "fastq2_wgs": wgs[1] if wgs_pairing else "",
-            "is_paired_wgs":wgs_pairing,
-            "contigs":"contigs_1",
-            "min_size":args["min_size"],
-            "fastq1_hic":hic[0], # map params
-            "fastq2_hic":hic[1] if hic_pairing else "",
-            "mapping":"mapping_1",
-            "enzymes":args["enzymes"],
-            "binnings":";".join(binnings),
-            "format":args["format"],
-            "chroms":args["chroms"], # describe params
-            "cool":args["cool"],
-            "mcool":f"mapping_1/mapping_1.mcool",
-            "formats":";".join(args["formats"])
-        }]
+        rows = []
+        mapping_index = 1
+        contig_index = 1
+        for wgs, wgs_pairing in args['wgs']:
+            for hic, hic_pairing in args["hic"]:
+                rows.append({
+                    "name":name,
+                    "index":args['index'],
+                    "fastq1_wgs": wgs[0], # retrieve params
+                    "fastq2_wgs": wgs[1] if wgs_pairing == "PAIRED" else "",
+                    "is_paired_wgs":wgs_pairing,
+                    "contigs":f"contigs_{contig_index}",
+                    "min_size":args["min_size"],
+                    "fastq1_hic":hic[0], # map params
+                    "fastq2_hic":hic[1] if hic_pairing =="PAIRED" else "",
+                    "mapping":f"mapping_{mapping_index}",
+                    "enzymes":args["enzymes"],
+                    "binnings":";".join(binnings),
+                    "format":args["format"],
+                    "chroms":args["chroms"], # describe params
+                    "cool":args["cool"],
+                    "mcool":f"mapping_{mapping_index}/mapping_{mapping_index}.mcool",
+                    "formats":";".join(args["formats"])
+                })
+                mapping_index += 1
+            contig_index += 1
         return pd.DataFrame.from_dict(rows)
 
 def pipeline(name, outpath, first_step = "load", last_step = "describe", **args):

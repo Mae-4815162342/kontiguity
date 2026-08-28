@@ -1,4 +1,5 @@
 import click
+import os
 
 class IntListType(click.ParamType):
     name="int_list"
@@ -49,7 +50,25 @@ class PairListType(click.ParamType):
             is_paired = len(pair_values) == 2
             formated_pairs.append((pair_values, is_paired))
         return formated_pairs
+    
+class FastqType(click.ParamType):
+    name="fastq"
+
+    def convert(self, value, param, ctx):
+        pairs = value.split(',')
+        formated_pairs = []
+        for pair in pairs:
+            if len(pair) == 0:
+                self.fail(f"Empty strings. Comma must separate two distinct values; if a single string is passed, no comma must be found in {param.name}.")
+            pair_values = pair.split(':')
+            if len(pair_values) > 2:
+                self.fail(f"Too many values provided in {pair}. Colons must separate at most two distinct values; if a single value is passed, do not add colons.")
+            is_paired = len(pair_values) == 2 and os.path.exists(pair_values[0]) and os.path.exists(pair_values[1])
+            pairing = "PAIRED" if is_paired else "SINGLE" if os.path.exists(pair_values[0]) else "WAIT_LOAD"
+            formated_pairs.append((pair_values, pairing))
+        return formated_pairs
 
 INT_LIST = IntListType()
 STR_LIST = StrListType()
 PAIR_LIST = PairListType()
+FASTQ = FastqType()

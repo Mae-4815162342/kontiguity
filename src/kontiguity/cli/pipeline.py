@@ -31,12 +31,12 @@ import kontiguity.pipeline as kpipeline
 ### data parameters
 @click.option(
     "--wgs",
-    type=PAIR_LIST,
+    type=FASTQ,
     help="comma-separated list of paths to the WGS fastq(s) OR SRA accession. If paired and local, provide both fastqs separated by : ."
 )
 @click.option(
     "--hic",
-    type=PAIR_LIST,
+    type=FASTQ,
     help="comma-separated list of paths to the Hi-C fastq(s) OR SRA accession. If paired and local, provide both fastqs separated by : "
 )
 @click.option(
@@ -158,6 +158,18 @@ import kontiguity.pipeline as kpipeline
     type=STR_LIST,
     default="pdf",
     help='comma-separated format list for output (image format required).',
+)
+@click.option(
+    "--mini_only",
+    is_flag=True,
+    default=False,
+    help="if selected, the only output of describe is mini-matrices. For each cool in the dataset, mini-matrices, unbalanced and normalized, will be produce, containing all the chromosomes and contigs with a minimal trans contact signal of 0."
+)
+@click.option(
+    "--no_mini",
+    is_flag=True,
+    default=False,
+    help="if selected, mini matrices single figure are not outputed. Mini matrices are still present in the summary figures."
 )
 ### processing options
 @click.option(

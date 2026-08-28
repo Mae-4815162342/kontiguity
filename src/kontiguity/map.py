@@ -60,7 +60,7 @@ def map_hics(hic_dict, outpath, no_tmp = False, threads = 8, sbatch = False, **s
             local_outpath = f"{outfolder}/{row_data['mapping']}"
             build_arborescence(outpath)
             hic_name = row_data['mapping']
-            binnings = sorted(list(row_data['binnings'].split(';')))
+            binnings = sorted(list(str(row_data['binnings']).split(';')))
             min_binning = str(reduce(math.gcd, [int(value) for value in binnings]))
             other_binnings = binnings[1:] if min_binning in binnings else binnings
 
@@ -159,6 +159,7 @@ def map(
         if data is None:
             print("Error: missing HIC input.")
             return
+
     data["mapping"] = [f"mapping_{k + 1}" for k in range(len(data))] if "mapping" not in data.columns else data["mapping"]
     data.to_csv(f"{outfolder}/mapping_data.csv", index=False)
     

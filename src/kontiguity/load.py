@@ -59,18 +59,24 @@ def build_dataset(names, indexes, fastqs_wgs, fastqs_hic, **args):
         for index in current_indexes:
             for WGS in WGSs:
                 wgs, wgs_pairing = WGS
+                is_paired_load_wgs = wgs_pairing == "WAIT_LOAD" and os.path.exists(wgs[0] + "_2.fastq")
+                wgs_1 = wgs[0] if wgs_pairing == "PAIRED" or wgs_pairing == "SINGLE" else wgs[0] + "_1.fastq" if is_paired_load_wgs else wgs[0] + ".fastq"
+                wgs_2 = wgs[1] if wgs_pairing == "PAIRED" or wgs_pairing == "SINGLE" else wgs[0] + "_2.fastq" if is_paired_load_wgs else ""
                 for HIC in HICs:
                     hic, hic_pairing = HIC
+                    is_paired_load_hic = hic_pairing == "WAIT_LOAD" and os.path.exists(hic[0] + "_2.fastq")
+                    hic_1 = hic[0] if hic_pairing == "PAIRED" or hic_pairing == "SINGLE" else hic[0] + "_1.fastq" if is_paired_load_hic else hic[0] + ".fastq"
+                    hic_2 = hic[1] if hic_pairing == "PAIRED" or hic_pairing == "SINGLE" else hic[0] + "_2.fastq" if is_paired_load_hic else ""
                     rows.append({
                         "name":name,
                         "index":index,
-                        "fastq1_wgs": wgs[0], # retrieve params
-                        "fastq2_wgs": wgs[1] if wgs_pairing else "",
-                        "is_paired_wgs":wgs_pairing,
+                        "fastq1_wgs": wgs_1, # retrieve params
+                        "fastq2_wgs": wgs_2,
+                        "is_paired_wgs":wgs_pairing == "PAIRED" or is_paired_load_wgs,
                         "contigs":f"contigs_{contigs}",
                         "min_size":args["min_size"] if "min_size" in args else np.nan,
-                        "fastq1_hic":hic[0], # map params
-                        "fastq2_hic":hic[1] if hic_pairing else "",
+                        "fastq1_hic":hic_1, # map params
+                        "fastq2_hic":hic_2 if hic_pairing else "",
                         "mapping":f"mapping_{mapping}",
                         "enzymes":args["enzymes"] if "enzymes" in args else np.nan,
                         "binnings":";".join(binnings) if "binnings" in args else np.nan,
@@ -238,10 +244,9 @@ def load_fastqs(fastq_dict, outpath, experiment, threads = 8, sbatch = False, **
         # parameters
         for k in range(len(fastq_dict[ref])):
             if not isinstance(fastq_dict[ref][k], str):
-                fastqs, paired_value = fastq_dict[ref][k]
+                fastqs, pairing = fastq_dict[ref][k]
                 fastq1 = fastqs[0]
                 fastq2 = fastqs[1] if len(fastqs) > 1 else ""
-                paired = paired_value == "paired" or paired_value
             else:
                 fastq1 = fastq_dict[ref][k]
                 fastq2 = ""
@@ -249,11 +254,19 @@ def load_fastqs(fastq_dict, outpath, experiment, threads = 8, sbatch = False, **
 
             # scripts to call
             to_load1 = "true" if not os.path.isfile(fastq1) else 'none'
-            to_load2 = "true" if paired and not os.path.isfile(fastq2) else 'none'
+            to_load2 = "true" if pairing == "PAIRED" and not os.path.isfile(fastq2) else 'none'
 
-            fastq1_path = fastq1 if to_load1 == 'none' else f"{outfolder}/{fastq1}_1.fastq"
-            fastq2_path = fastq2 if to_load2 == 'none' else f"{outfolder}/{fastq1}_2.fastq" if paired else ""
-            fastqs_refs[species].append(([fastq1_path, fastq2_path], paired))
+            fastq1_path = f"{outfolder}/{fastq1}"
+            fastq2_path = ""
+            match pairing:
+                case "PAIRED":
+                    fastq1_path = fastq1 if to_load1 == 'none' else f"{outfolder}/{fastq1}_1.fastq"
+                    fastq2_path = fastq2 if to_load2 == 'none' else f"{outfolder}/{fastq1}_2.fastq"
+                case "SINGLE":
+                    fastq1_path = fastq1 if to_load1 == 'none' else f"{outfolder}/{fastq1}.fastq"
+                    fastq2_path = ""
+            
+            fastqs_refs[species].append(([fastq1_path, fastq2_path], pairing))
 
             # queuing first fastq
             fastq_queue.put(([
@@ -335,13 +348,13 @@ def load(
     wgs_loaders, wgs_fastqs = load_fastqs(subset_wgs, outpath = outtmp, experiment='wgs', threads = threads, sbatch = sbatch, **sbatch_params) if not no_wgs else ([], {})
     hic_loaders, hic_fastqs = load_fastqs(subset_hic, outpath = outtmp, experiment='hic', threads = threads, sbatch = sbatch, **sbatch_params) if not no_hic else ([], {})
 
-    ## creating dataset for other methods usage
-    dataset = build_dataset(names, indexes, wgs_fastqs, hic_fastqs, **kwargs)
-    dataset.to_csv(f"{outfolder}/dataset.csv")
-
     ### joining loaders
     join_workers(ref_loaders)
     join_workers(wgs_loaders)
     join_workers(hic_loaders)
+
+    ## creating dataset for other methods usage
+    dataset = build_dataset(names, indexes, wgs_fastqs, hic_fastqs, **kwargs)
+    dataset.to_csv(f"{outfolder}/dataset.csv")
 
     return f"{outfolder}/dataset.csv"

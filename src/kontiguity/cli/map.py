@@ -25,7 +25,7 @@ import kontiguity.map as kmap
 )
 @click.option(
     "--hic",
-    type=PAIR_LIST,
+    type=FASTQ,
     help="path to the Hi-C fastq(s). If paired, provide both fastqs comma-separated."
 )
 @click.option(
