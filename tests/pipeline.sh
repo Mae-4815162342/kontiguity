@@ -11,6 +11,6 @@ kontiguity pipeline \
     --chroms $data_path/chromosomes.csv \
     --wgs $data_path/wgs/FG0155_nxq_R1.fq.gz:$data_path/wgs/FG0155_nxq_R2.fq.gz \
     --hic $data_path/hic/FG0153_nxq_R1.fq.gz:$data_path/hic/FG0153_nxq_R2.fq.gz \
-    --first_step describe \
+    --first_step load \
     --formats png,pdf \
     --binnings 10000,50000

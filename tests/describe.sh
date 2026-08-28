@@ -18,8 +18,16 @@ data_path="test_data/describe"
 
 # table test
 table_path=$data_path/parameter_table.csv
+# kontiguity describe \
+#     -o test_results \
+#     --chromstart AP0 \
+#     --contigs AP023147.1 \
+#     --table $table_path
+
 kontiguity describe \
     -o test_results \
     --chromstart AP0 \
     --contigs AP023147.1 \
-    --table $table_path
+    --table $table_path \
+    --formats pdf,png \
+    --mini_only

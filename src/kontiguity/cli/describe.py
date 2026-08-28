@@ -75,13 +75,25 @@ import kontiguity.describe as kdescribe
 @click.option(
     "--formats",
     type=STR_LIST,
-    default=["pdf"],
+    default="pdf",
     help='comma-separated format list for output (image format required).',
 )
 @click.option(
     "--table",
     type=str,
     help='path to a csv table providing the data parameters (Mandatory column heads: ["name", "ref", "wgs", "hic"]).'
+)
+@click.option(
+    "--mini_only",
+    is_flag=True,
+    default=False,
+    help="if selected, the only output of describe is mini-matrices. For each cool in the dataset, mini-matrices, unbalanced and normalized, will be produce, containing all the chromosomes and contigs with a minimal trans contact signal of 0."
+)
+@click.option(
+    "--no_mini",
+    is_flag=True,
+    default=False,
+    help="if selected, mini matrices single figure are not outputed. Mini matrices are still present in the summary figures."
 )
 @click.option(
     "--sbatch",
