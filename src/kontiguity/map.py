@@ -75,10 +75,10 @@ def map_hics(hic_dict, outpath, no_tmp = False, threads = 8, sbatch = False, **s
 
             # fastq check
             ## if it is not a path to a file, will be looked for in the kontiguity arborescence.
-            paired_fastq = f"{outpath}/{species}/dataset/hic/{row_data['fastq1']}_1.fastq"
+            paired_fastq = f"{outpath}/{species}/dataset/hic/{row_data['fastq1']}_1.fastq.gz"
             if os.path.exists(paired_fastq):
                 hic_R1  = paired_fastq
-                hic_R2 = f"{outpath}/{species}/dataset/hic/{row_data['fastq1']}_2.fastq"
+                hic_R2 = f"{outpath}/{species}/dataset/hic/{row_data['fastq1']}_2.fastq.gz"
             else:
                 hic_R1= "." if len(row_data["fastq1"]) == 0 else row_data["fastq1"]
                 hic_R2= "." if len(row_data["fastq2"]) == 0 else row_data["fastq2"]
