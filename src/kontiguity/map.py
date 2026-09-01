@@ -7,8 +7,8 @@ def create_table(name, index, HICs, enzymes = "HinfI,DpnII", binnings = "5000", 
         {
             "name":name,
             "index":index,
-            "fastq1":hic[0],
-            "fastq2":hic[1] if paired else "",
+            "fastq1_hic":hic[0],
+            "fastq2_hic":hic[1] if paired else "",
             "enzymes":enzymes,
             "binnings":binnings,
             "format":format
@@ -60,12 +60,12 @@ def map_hics(hic_dict, outpath, no_tmp = False, threads = 8, sbatch = False, **s
             local_outpath = f"{outfolder}/{row_data['mapping']}"
             build_arborescence(outpath)
             hic_name = row_data['mapping']
-            binnings = sorted(list(row_data['binnings'].split(',')))
+            binnings = sorted(list(str(row_data['binnings']).split(';')))
             min_binning = str(reduce(math.gcd, [int(value) for value in binnings]))
             other_binnings = binnings[1:] if min_binning in binnings else binnings
 
             # index is looked for in an eventual dataset previously loaded with the load command if a path is not provided
-            index = row_data["index"]
+            index = row_data["index"] if "contigs" not in row_data or len(row_data["contigs"]) == 0 else f'{outpath}/{species}/contigs/{row_data["contigs"]}/genome'
             if not os.path.isfile(index + '.fna') and not os.path.isfile(index + '.fa'):
                 index = f"{outpath}/{species}/dataset/genomes/{index}"
 
@@ -75,20 +75,20 @@ def map_hics(hic_dict, outpath, no_tmp = False, threads = 8, sbatch = False, **s
 
             # fastq check
             ## if it is not a path to a file, will be looked for in the kontiguity arborescence.
-            paired_fastq = f"{outpath}/{species}/dataset/hic/{row_data['fastq1']}_1.fastq"
+            paired_fastq = f"{outpath}/{species}/dataset/hic/{row_data['fastq1_hic']}_1.fastq"
             if os.path.exists(paired_fastq):
                 hic_R1  = paired_fastq
-                hic_R2 = f"{outpath}/{species}/dataset/hic/{row_data['fastq1']}_2.fastq"
+                hic_R2 = f"{outpath}/{species}/dataset/hic/{row_data['fastq1_hic']}_2.fastq"
             else:
-                hic_R1= "." if len(row_data["fastq1"]) == 0 else row_data["fastq1"]
-                hic_R2= "." if len(row_data["fastq2"]) == 0 else row_data["fastq2"]
+                hic_R1= "." if len(row_data["fastq1_hic"]) == 0 else row_data["fastq1_hic"]
+                hic_R2= "." if len(row_data["fastq2_hic"]) == 0 else row_data["fastq2_hic"]
 
             # rebin params
             to_rebin = "true" if row_data['format'] == "cool" and len(other_binnings) > 0 else "false"
             binnings_formated = " ".join(other_binnings)
 
             # zoomify params
-            to_zoomify = "true" if row_data['format'] == "mcool" else "false"
+            to_zoomify = "true"
             zoomings = ",".join(binnings)
 
             # queuing
@@ -130,8 +130,7 @@ def map(
     index = "",
     hic = "",
     enzymes = "HinfI,DpnII",
-    binnings = "5000",
-    format = "cool",
+    binnings = [5000],
     table = None,
     no_tmp = False,
     threads =  8,
@@ -139,7 +138,8 @@ def map(
     sbtach_partition = 'dedicated',
     sbtach_qos = 'fast',
     sbtach_mem = '40G',
-    sbatch_ncpus = 30
+    sbatch_ncpus = 30,
+    **kwargs
 ):
     sbatch_params = {
         '--partition': sbtach_partition,
@@ -159,15 +159,14 @@ def map(
         if data is None:
             print("Error: missing HIC input.")
             return
-    data["mapping"] = [f"mapping_{k + 1}" for k in range(len(data))]
+
+    data["mapping"] = [f"mapping_{k + 1}" for k in range(len(data))] if "mapping" not in data.columns else data["mapping"]
     data.to_csv(f"{outfolder}/mapping_data.csv", index=False)
     
     ## retrieving unique name subset
     subset_hic = {}
-    is_single_name = True
+    is_single_name = len(np.unique(data['name'])) == 1
     for subname in np.unique(data['name']):
-        if is_single_name and name != subname:
-            is_single_name = False
         subset_hic[subname] = data[data['name'] == subname]
 
     ## launching retrievers

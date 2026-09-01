@@ -22,7 +22,7 @@ data_path="test_data/load"
 #     --hic ERR6054673,ERR6054674,ERR6054675
 
 # table test
-tmp_out=/media/sardine/data_3/test_results
+tmp_out=test_results
 kontiguity load -n "table test" -o $tmp_out --table $data_path/test_dataset.csv
 
 # # dtol test

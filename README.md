@@ -104,7 +104,7 @@ Options:
 -o, --outpath TEXT       output folder path, created if non-existent
 -i, --index TEXT         path to the reference genome index.
 --min-size INTEGER       minimum size of the kept contigs in bp.
---wgs PAIR_LIST          path to the WGS fastq(s). If paired, provide both
+--wgs FASTQ          path to the WGS fastq(s). If paired, provide both
                         fastqs comma-separated.
 --table TEXT             path to a csv table providing the data parameters
                         (Mandatory column heads: ["name", "index", "wgs"]).

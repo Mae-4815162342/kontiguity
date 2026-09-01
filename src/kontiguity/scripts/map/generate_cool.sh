@@ -37,7 +37,6 @@ hicstuff pipeline \
     --matfmt bg2 \
     --distance-law \
     --mapping iterative \
-    --binning $binning \
     --tmpdir $tmp_dir/hicstuff_tmp \
     $hic_R1 \
     $hic_R2 \

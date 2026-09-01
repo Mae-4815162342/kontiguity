@@ -31,7 +31,7 @@ import kontiguity.retrieve as kretrieve
 )
 @click.option(
     "--wgs",
-    type=PAIR_LIST,
+    type=FASTQ,
     help="path to the WGS fastq(s). If paired, provide both fastqs comma-separated."
 )
 @click.option(

@@ -29,12 +29,12 @@ import kontiguity.load as kload
 )
 @click.option(
     "--wgs",
-    type=PAIR_LIST,
+    type=FASTQ,
     help="comma-separated list of paths to the WGS fastq(s) OR SRA accession. If paired and local, provide both fastqs separated by : ."
 )
 @click.option(
     "--hic",
-    type=PAIR_LIST,
+    type=FASTQ,
     help="comma-separated list of paths to the Hi-C fastq(s) OR SRA accession. If paired and local, provide both fastqs separated by : "
 )
 @click.option(

@@ -25,7 +25,7 @@ import kontiguity.map as kmap
 )
 @click.option(
     "--hic",
-    type=PAIR_LIST,
+    type=FASTQ,
     help="path to the Hi-C fastq(s). If paired, provide both fastqs comma-separated."
 )
 @click.option(
@@ -36,15 +36,9 @@ import kontiguity.map as kmap
 )
 @click.option(
     "--binnings",
-    type=str,
+    type=INT_LIST,
     default="10000",
     help='comma separated bin sizes in bp in which each map is generated (dflt: 10000).'
-)
-@click.option(
-    "--format",
-    type=click.Choice(["cool", "mcool"]),
-    default="cool",
-    help='output format of generated maps in each binning: [cool/mcool] (dflt: cool).'
 )
 @click.option(
     "--table",
@@ -92,7 +86,7 @@ import kontiguity.map as kmap
     "--sbatch_ncpus",
     default=30,
     type=int,
-    help="number of cpus required per task fro sbatch."
+    help="number of cpus required per task from sbatch."
 )
 def map(**args):
     kmap.map(**args)

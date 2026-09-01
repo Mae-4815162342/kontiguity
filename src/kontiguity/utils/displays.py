@@ -9,10 +9,17 @@ SIGNAL_TITLES = {
         "Normalized":"Normalized"
     }
 
+def compute_log(array):
+    """Computes log10 of array without errors. log10(0) and log10(NaN) are replaced by NaN."""
+    log_array = np.copy(array)
+    log_array[np.isnan(log_array)] = 0
+    log_array[log_array > 0] = np.log10(log_array[log_array > 0])
+    log_array[log_array == 0] = np.nan
+    return log_array
 
 def display_mini_matrix(matrix, ax, labels, nb_chroms,  title, left_labels = True, fontsize = 5):
     """Plots mini matrix on ax."""
-    mat = ax.imshow(np.log10(matrix[:, :nb_chroms]))
+    mat = ax.imshow(compute_log(matrix[:, :nb_chroms]))
     ax.set_title(f"{title}\nmini matrix")
     if left_labels:
         indexes = [i for i in range(len(labels))]
@@ -23,7 +30,7 @@ def display_mini_matrix(matrix, ax, labels, nb_chroms,  title, left_labels = Tru
     ax.set_xticks(indexes, labels[:nb_chroms], rotation = 90, fontsize = fontsize)
     return mat
     
-def display_mini_matrices(outer_gs, raw, norm, labels, nb_chrom):
+def display_mini_matrices(outer_gs, raw, norm, labels, nb_chrom, fontsize = 7):
     """Plots both mini-matrices with legends and colorbars."""
     gs = grid.GridSpecFromSubplotSpec(3, 4, subplot_spec=outer_gs, wspace=0.4, hspace=0.5, width_ratios = [1, 0.05, 1, 0.05], height_ratios = [1,1,1])
 
@@ -33,10 +40,31 @@ def display_mini_matrices(outer_gs, raw, norm, labels, nb_chrom):
     ax_cbar_norm = plt.subplot(gs[1, 3])
     mat = display_mini_matrix(raw, ax_raw, labels, nb_chrom, "Unbalanced")
     cbar = plt.colorbar(mat, cax = ax_cbar_raw, shrink = 0.1)
-    ax_cbar_raw.set_title("Contact\nintensity\n(log10)", fontsize = 7)
+    ax_cbar_raw.set_title("Contact\nintensity\n(log10)", fontsize = fontsize)
     mat = display_mini_matrix(norm, ax_norm, labels, nb_chrom, "Normalized", left_labels = False)
-    cbar = plt.colorbar(mat, cax = ax_cbar_norm, label="Log10 of contact signal", shrink = 0.1)
-    ax_cbar_norm.set_title("Contact\nintensity\n(log10)", fontsize = 7)
+    cbar = plt.colorbar(mat, cax = ax_cbar_norm, shrink = 0.1)
+    ax_cbar_norm.set_title("Contact\nintensity\n(log10)", fontsize = fontsize)
+
+def plot_mini_matrices(mini_raw, mini_norm, chromosomes, contigs, mapping, mitochondria = "", outpath = "", max_size = 20, formats = ["pdf"]):
+    """Plots unbalanced and normalized mini matrices for all contigs. If the number of contigs to plot is above the max size, will divide in several figures, keeping for each the chromosomes and the mitochondria (if provided)."""
+    for i in range(0, len(contigs) + max_size - 1, max_size):
+        current_contigs_number = max_size if i + max_size < len(contigs) else len(contigs) - i
+        selected_contigs = contigs[i: i + current_contigs_number]
+        selected_sequences = chromosomes + [mitochondria + "(organelle)"] + selected_contigs if len(mitochondria) > 0 else chromosomes + selected_contigs
+        nb_chrom = len(chromosomes) + (1 if len(mitochondria) > 0 else 0)
+        
+        selected_mini_raw = np.concatenate([mini_raw[:nb_chrom, :nb_chrom], mini_raw[nb_chrom + i: nb_chrom + i + current_contigs_number, :nb_chrom]], axis = 0)
+        selected_mini_norm = np.concatenate([mini_norm[:nb_chrom, :nb_chrom], mini_norm[nb_chrom + i: nb_chrom + i + current_contigs_number, :nb_chrom]], axis = 0)
+
+        plt.figure(figsize = (10, 10))
+        outer_gs = grid.GridSpec(1, 1)
+        display_mini_matrices(outer_gs[0], selected_mini_raw, selected_mini_norm, selected_sequences, nb_chrom, fontsize = 10)    
+
+        figure_number = "" if len(contigs) <= max_size else f"{(i + current_contigs_number) % max_size}_out_of_{len(contigs % max_size) + 1}."
+        for form in formats:
+            plt.savefig(f"{outpath}/Mini_matrices{'.' + mapping if len(mapping) > 0 else ''}.{figure_number}{form}", dpi = 300, bbox_inches = "tight")
+        if i + current_contigs_number >= len(contigs):
+            break
     
 def draw_info_box(ax, contig, species, binning, data, fontsize=11, title_fontsize=12):
     """Draw information rectangle on ax."""
@@ -106,7 +134,7 @@ def display_signal(ax, signals, binning):
         "Mitochondria":"green"
     }
     for entity, signal in signals.items():
-        ax.plot(np.log10(signal), label = entity, color=SIGNAL_COLORS[entity])
+        ax.plot(compute_log(signal), label = entity, color=SIGNAL_COLORS[entity])
         index = range( 0, len(signal), int(len(signal) // 5))
         ax.set_xticks(index, [i * binning for i in index])
     
@@ -120,7 +148,7 @@ def display_hic(outer_gs, contig, data):
     mat_size = len(matrix) * data["Binning"]
     ax_matrix = plt.subplot(gs[:3, :2])
     ax_matrix.set_title("Hi-C contact matrix\n(chromosomes and contigs)")
-    im = ax_matrix.imshow(np.log10(matrix), cmap = "afmhot_r", extent = [0, mat_size, mat_size, 0])
+    im = ax_matrix.imshow(compute_log(matrix), cmap = "afmhot_r", extent = [0, mat_size, mat_size, 0])
     ax_matrix.set_ylabel("Genomic coordinates (in bp)", fontsize = 7)
     ax_matrix.set_xlabel("Genomic coordinates (in bp)", fontsize = 7)
     plt.colorbar(im, ax = ax_matrix, shrink = 0.5)
@@ -190,13 +218,14 @@ def build_display(contig, hic_data, tracks_data, sequence_data, outpath = "", fo
         subfig_count += 1
         display_hic(outer_gs, contig, hic_data)
     
-    if has_tracks:
-        outer_gs = gs[subfig_count, 0]
-        subfig_count += 1
+    # if has_tracks:
+    #     outer_gs = gs[subfig_count, 0]
+    #     subfig_count += 1
         
-    if has_sequence:
-        outer_gs = gs[subfig_count, 0]
-        subfig_count += 1
+    # if has_sequence:
+    #     outer_gs = gs[subfig_count, 0]
+    #     subfig_count += 1
 
     for fmt in formats:
-        plt.savefig(f"{outpath}/{contig}.summary.{fmt}", dpi = 300, bbox_inches = "tight")
+        to_append = f"{'.' + hic_data['Mapping'] if len(hic_data['Mapping']) > 0 else ''}.{hic_data['Binning']}." if has_hic else "."
+        plt.savefig(f"{outpath}/{contig}{to_append}summary.{fmt}", dpi = 300, bbox_inches = "tight")

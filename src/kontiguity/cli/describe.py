@@ -1,5 +1,5 @@
 import click
-
+from .types import *
 import kontiguity.describe as kdescribe
 
 @click.command("describe")
@@ -16,15 +16,21 @@ import kontiguity.describe as kdescribe
     help="output folder path, created if non-existent"
 )
 @click.option(
-    "--chroms",
+    "--chroms_list",
     default = "",
     type=str,
-    help='comma-separated chromosome list.'
+    help='comma-separated chromosome list. Uncompatible with the --chroms parameter, which will take priority for providing sequence type information.'
 )
 @click.option(
     "--mitochondria",
     type=str,
-    help="mitochondria (or other organelle) reference. If provided, the organelle will be considered in the signals display."
+    help="mitochondria (or other organelle) reference. If provided, the organelle will be considered in the signals display. Uncompatible with the --chroms parameter, which will take priority for providing sequence type information."
+)
+@click.option(
+    "--chroms",
+    type=str,
+    default="",
+    help='path to a chromosome information file detailing the type of each sequence present in the reference (Mandatory column heads: ["id", "sequence_type", "sequence_name"]). "sequence_type" must be in the ENA database format : ["chromosome", "organelle", ...]. Required only for a local fasta, GCA referenced genomes will have the chromosome.tsv generated.'
 )
 @click.option(
     "--min_chrom_size",
@@ -45,20 +51,10 @@ import kontiguity.describe as kdescribe
     help="comma-separated list of the contigs to describe. If not provided, will evaluate all the contigs that are not identified as chromosomes with a total trans-coverage of at least 1."
 )
 @click.option(
-    "--fasta",
-    default = "",
+    "-i",
+    "--index",
     type=str,
-    help="path to the reference genome sequence file (fasta format)."
-)
-@click.option(
-    "--gff",
-    type=str,
-    help="path to the reference genome annotation file (GFF/GFF3 format)."
-)
-@click.option(
-    "--tracks",
-    type=str,
-    help="path to a track file (bigwig format)."
+    help="path to the reference genome index."
 )
 @click.option(
     "--mcool",
@@ -66,15 +62,21 @@ import kontiguity.describe as kdescribe
     help="path to mcool file of contigs to classify. The program will compute and classify the contact profiles of contigs not referenced in the chromosome info file. Requires --binning."
 )
 @click.option(
-    "--binning",
-    type=int,
-    default="10000",
-    help='Binning size for descriptive statistic of HiC generation (dflt: 10000).'
-)
-@click.option(
     "--cool",
     type=str,
     help="path to cool file of contigs to classify. The program will compute the descriptive statistics of all contigs not referenced in the chromosome info file if the desired contigs are not provided via the --contigs option."
+)
+@click.option(
+    "--binnings",
+    type=INT_LIST,
+    default="10000",
+    help='comma separated bin sizes in bp in which each map is generated (dflt: 10000).'
+)
+@click.option(
+    "--formats",
+    type=STR_LIST,
+    default="pdf",
+    help='comma-separated format list for output (image format required).',
 )
 @click.option(
     "--table",
@@ -82,10 +84,16 @@ import kontiguity.describe as kdescribe
     help='path to a csv table providing the data parameters (Mandatory column heads: ["name", "ref", "wgs", "hic"]).'
 )
 @click.option(
-    "--formats",
-    type=str,
-    default="pdf",
-    help='comma-separated format list for output (image format required).',
+    "--mini_only",
+    is_flag=True,
+    default=False,
+    help="if selected, the only output of describe is mini-matrices. For each cool in the dataset, mini-matrices, unbalanced and normalized, will be produce, containing all the chromosomes and contigs with a minimal trans contact signal of 0."
+)
+@click.option(
+    "--no_mini",
+    is_flag=True,
+    default=False,
+    help="if selected, mini matrices single figure are not outputed. Mini matrices are still present in the summary figures."
 )
 @click.option(
     "--sbatch",

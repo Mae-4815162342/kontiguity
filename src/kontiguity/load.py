@@ -42,6 +42,55 @@ def create_table(name, ref, WGSs, HICs, no_hic = False, no_wgs = False):
         return None
     return pd.DataFrame.from_dict(table_dict)
 
+def build_dataset(names, indexes, fastqs_wgs, fastqs_hic, **args):
+    """Builds global parameter table for each """
+    binnings = np.array(args["binnings"]).astype(str) if "binnings" in args else []
+    rows = []
+    for name in names:
+        name = name.replace(" ","_")
+        current_indexes = indexes[name] if name in indexes else [args["index"]] if "index" in args else None
+        if current_indexes is None:
+            print(f"ERROR: no reference or index provided for {name}")
+        WGSs = fastqs_wgs[name]
+        HICs = fastqs_hic[name]
+
+        contigs = 1
+        mapping = 1
+        for index in current_indexes:
+            for WGS in WGSs:
+                wgs, wgs_pairing = WGS
+                is_paired_load_wgs = wgs_pairing == "WAIT_LOAD" and os.path.exists(wgs[0] + "_2.fastq")
+                wgs_1 = wgs[0] if wgs_pairing == "PAIRED" or wgs_pairing == "SINGLE" else wgs[0] + "_1.fastq" if is_paired_load_wgs else wgs[0] + ".fastq"
+                wgs_2 = wgs[1] if wgs_pairing == "PAIRED" or wgs_pairing == "SINGLE" else wgs[0] + "_2.fastq" if is_paired_load_wgs else ""
+                for HIC in HICs:
+                    hic, hic_pairing = HIC
+                    is_paired_load_hic = hic_pairing == "WAIT_LOAD" and os.path.exists(hic[0] + "_2.fastq")
+                    hic_1 = hic[0] if hic_pairing == "PAIRED" or hic_pairing == "SINGLE" else hic[0] + "_1.fastq" if is_paired_load_hic else hic[0] + ".fastq"
+                    hic_2 = hic[1] if hic_pairing == "PAIRED" or hic_pairing == "SINGLE" else hic[0] + "_2.fastq" if is_paired_load_hic else ""
+                    rows.append({
+                        "name":name,
+                        "index":index,
+                        "fastq1_wgs": wgs_1, # retrieve params
+                        "fastq2_wgs": wgs_2,
+                        "is_paired_wgs":wgs_pairing == "PAIRED" or is_paired_load_wgs,
+                        "contigs":f"contigs_{contigs}",
+                        "min_size":args["min_size"] if "min_size" in args else np.nan,
+                        "fastq1_hic":hic_1, # map params
+                        "fastq2_hic":hic_2 if hic_pairing else "",
+                        "mapping":f"mapping_{mapping}",
+                        "enzymes":args["enzymes"] if "enzymes" in args else np.nan,
+                        "binnings":";".join(binnings) if "binnings" in args else np.nan,
+                        "format":args["format"] if "format" in args else np.nan,
+                        "chroms":args["chroms"] if "chroms" in args else np.nan, # describe params
+                        "cool":args["cool"] if "cool" in args else "",
+                        "mcool":f"mapping_{mapping}/mapping_{mapping}.mcool",
+                        "formats":";".join(args["formats"]) if "formats" in args else np.nan
+                    })
+                    mapping += 1
+                contigs += 1
+
+    return pd.DataFrame.from_dict(rows)
+
 def load_dtol(nb_per_page=100, threads=8):
     """Retrieves datas from the Darwin Tree of Life and builds a kontiguity dataset table from it."""
 
@@ -119,9 +168,12 @@ def load_ref(ref_dict, outpath, chroms = None, threads = 8, sequence_types = 'ch
         scexec.ScriptExecutorScheduler(genome_queue, script) for _ in range(threads)
     ]
 
+    indexes = {}
+
     # feading fastas to the input queue
     for ref in ref_dict:
         species = ref.replace(" ","_")
+        indexes[species] = []
 
         # creating outfolder
         outfolder = f'{outpath}/{species}/dataset/genomes'
@@ -142,6 +194,8 @@ def load_ref(ref_dict, outpath, chroms = None, threads = 8, sequence_types = 'ch
             genome_name = species + f"_{k + 1}"
             loaded_fasta_path = f"{outfolder}/{genome_name}.all_seqs.fa" if not os.path.exists(ref_dict[ref][k]) else ref_dict[ref][k]
 
+            indexes[species].append(f"{outfolder}/{genome_name}")
+
             # queuing
             genome_queue.put(([
                 to_load,
@@ -159,7 +213,7 @@ def load_ref(ref_dict, outpath, chroms = None, threads = 8, sequence_types = 'ch
     for _ in range(len(workers)):
         genome_queue.put("DONE")
 
-    return workers
+    return workers, indexes
 
 def load_fastqs(fastq_dict, outpath, experiment, threads = 8, sbatch = False, **sbatch_params):
     """Builds the arborescence and eventualy retrieve fastq files with fasterq-dump before splitting in subfastqs."""
@@ -176,10 +230,12 @@ def load_fastqs(fastq_dict, outpath, experiment, threads = 8, sbatch = False, **
     workers = [
         scexec.ScriptExecutorScheduler(fastq_queue, script) for _ in range(threads)
     ]
+    fastqs_refs = {}
 
     # feading fastas to the input queue
     for ref in fastq_dict:
         species = ref.replace(" ","_")
+        fastqs_refs[species] = []
 
         # creating outfolder
         outfolder = f'{outpath}/{species}/dataset/{experiment}'
@@ -188,17 +244,29 @@ def load_fastqs(fastq_dict, outpath, experiment, threads = 8, sbatch = False, **
         # parameters
         for k in range(len(fastq_dict[ref])):
             if not isinstance(fastq_dict[ref][k], str):
-                fastqs, paired = fastq_dict[ref][k]
+                fastqs, pairing = fastq_dict[ref][k]
                 fastq1 = fastqs[0]
                 fastq2 = fastqs[1] if len(fastqs) > 1 else ""
             else:
                 fastq1 = fastq_dict[ref][k]
                 fastq2 = ""
-                paired = False
+                paired = not os.path.isfile(fastq1)
 
             # scripts to call
             to_load1 = "true" if not os.path.isfile(fastq1) else 'none'
-            to_load2 = "true" if paired == "paired" and not os.path.isfile(fastq2) else 'none'
+            to_load2 = "true" if pairing == "PAIRED" and not os.path.isfile(fastq2) else 'none'
+
+            fastq1_path = f"{outfolder}/{fastq1}"
+            fastq2_path = ""
+            match pairing:
+                case "PAIRED":
+                    fastq1_path = fastq1 if to_load1 == 'none' else f"{outfolder}/{fastq1}_1.fastq"
+                    fastq2_path = fastq2 if to_load2 == 'none' else f"{outfolder}/{fastq1}_2.fastq"
+                case "SINGLE":
+                    fastq1_path = fastq1 if to_load1 == 'none' else f"{outfolder}/{fastq1}.fastq"
+                    fastq2_path = ""
+            
+            fastqs_refs[species].append(([fastq1_path, fastq2_path], pairing))
 
             # queuing first fastq
             fastq_queue.put(([
@@ -209,7 +277,7 @@ def load_fastqs(fastq_dict, outpath, experiment, threads = 8, sbatch = False, **
             ], sbatch))
 
             # if paired, queuing second fastq
-            if paired == "paired":
+            if len(fastq2) > 0:
                 fastq_queue.put(([
                     to_load2,
                     fastq2,
@@ -217,7 +285,7 @@ def load_fastqs(fastq_dict, outpath, experiment, threads = 8, sbatch = False, **
                     str(threads)
                 ], sbatch))
 
-    return workers
+    return workers, fastqs_refs
 
 def load(
     name = "",
@@ -235,7 +303,8 @@ def load(
     sbtach_partition = 'dedicated',
     sbtach_qos = 'fast',
     sbtach_mem = '40G',
-    sbatch_ncpus = 30
+    sbatch_ncpus = 30,
+    **kwargs
 ):
     sbatch_params = {
         '--partition': sbtach_partition,
@@ -264,7 +333,8 @@ def load(
     subset_wgs = {}
     subset_hic = {}
     is_single_name = True
-    for subname in np.unique(data['name']):
+    names = np.unique(data['name'])
+    for subname in names:
         if is_single_name and name != subname:
             is_single_name = False
         subset = data[data['name'] == subname]
@@ -274,11 +344,17 @@ def load(
 
     ## launching loaders
     outtmp = outpath if is_single_name else outfolder
-    ref_loaders = load_ref(subset_ref, outpath = outtmp, chroms = chroms, threads = threads, sbatch = sbatch, **sbatch_params)
-    wgs_loaders = load_fastqs(subset_wgs, outpath = outtmp, experiment='wgs', threads = threads, sbatch = sbatch, **sbatch_params) if not no_wgs else []
-    hic_loaders = load_fastqs(subset_hic, outpath = outtmp, experiment='hic', threads = threads, sbatch = sbatch, **sbatch_params) if not no_hic else []
+    ref_loaders, indexes = load_ref(subset_ref, outpath = outtmp, chroms = chroms, threads = threads, sbatch = sbatch, **sbatch_params) if ref is not None or dtol or table is not None else ([], {})
+    wgs_loaders, wgs_fastqs = load_fastqs(subset_wgs, outpath = outtmp, experiment='wgs', threads = threads, sbatch = sbatch, **sbatch_params) if not no_wgs else ([], {})
+    hic_loaders, hic_fastqs = load_fastqs(subset_hic, outpath = outtmp, experiment='hic', threads = threads, sbatch = sbatch, **sbatch_params) if not no_hic else ([], {})
 
     ### joining loaders
     join_workers(ref_loaders)
     join_workers(wgs_loaders)
     join_workers(hic_loaders)
+
+    ## creating dataset for other methods usage
+    dataset = build_dataset(names, indexes, wgs_fastqs, hic_fastqs, **kwargs)
+    dataset.to_csv(f"{outfolder}/dataset.csv")
+
+    return f"{outfolder}/dataset.csv"
