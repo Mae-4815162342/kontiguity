@@ -5,12 +5,16 @@ Kontiguity is a python and bash pipeline created to retrieve unidentified contig
 ## Installation
 
 ```bash
+conda create --name kontiguity python=3.12 bowtie2 samtools megahit
+conda activate kontiguity
 pip install kontiguity
 ```
 
 For development:
 
 ```bash
+conda create --name kontiguity python=3.12 bowtie2 samtools megahit
+conda activate kontiguity
 git clone https://github.com/Mae-4815162342/kontiguity.git
 cd kontiguity
 pip install -e .

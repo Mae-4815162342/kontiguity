@@ -14,7 +14,7 @@ def join_workers(workers):
     for worker in workers:
         worker.join()
 
-def get_header(sbtach = False, outpath = None, **sbatch_params):
+def get_header(sbtach = False, outpath = None, verbose = False, **sbatch_params):
     """Gets the header of the bash script to execute. Applies sbatch parameters if provided."""
     header = "#!/bin/bash\n"
     if sbtach:
@@ -24,6 +24,14 @@ def get_header(sbtach = False, outpath = None, **sbatch_params):
 
         # adding output path
         header += f"#SBATCH -o {outpath}/logs/R-%x-%j-reference_load.out.txt -e {outpath}/logs/R-%x-%j-reference_load.err.txt\n"
+
+    # exported so every sourced scripts/lib/log.sh call in this script (and any
+    # subscript it calls) writes to the same run-wide log file, and only also
+    # prints to the terminal if verbose is set (see each command's --verbose).
+    if outpath is not None:
+        header += f'\nexport GLOBAL_LOG="{outpath}/logs/kontiguity.log"\nmkdir -p "{outpath}/logs"\n'
+        header += f'export GLOBAL_VERBOSE="{"true" if verbose else "false"}"\n'
+
     return header
 
 def write_script(header, subscripts, outpath, name = "script"):

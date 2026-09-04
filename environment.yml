@@ -1,0 +1,15 @@
+name: kontiguity
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.12
+  - hicstuff>=3.2.4
+  - megahit
+  - zstd
+  - gawk
+  - awscli
+  - pip
+  - pip:
+      - -e .

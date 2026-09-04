@@ -3,14 +3,14 @@
 outpath="test_results"
 data_path="test_data/load"
 
-# # local data
-# kontiguity load \
-#     -n "Saccharomyces cerevisiae" \
-#     -o $outpath \
-#     -r $data_path/S_cerevisiae.fna \
-#     --chroms $data_path/chromosomes.csv \
-#     --wgs $data_path/wgs/FG0155_nxq_R1.fq.gz:$data_path/wgs/FG0155_nxq_R2.fq.gz \
-#     --hic $data_path/hic/FG0153_nxq_R1.fq.gz:$data_path/hic/FG0153_nxq_R2.fq.gz
+# local data
+kontiguity load \
+    -n "Saccharomyces cerevisiae" \
+    -o $outpath \
+    -r $data_path/S_cerevisiae.fna \
+    --chroms $data_path/chromosomes.csv \
+    --wgs $data_path/wgs/FG0155_nxq_R1.fq.gz:$data_path/wgs/FG0155_nxq_R2.fq.gz \
+    --hic $data_path/hic/FG0153_nxq_R1.fq.gz:$data_path/hic/FG0153_nxq_R2.fq.gz
 
 
 # # external data
@@ -22,8 +22,8 @@ data_path="test_data/load"
 #     --hic ERR6054673,ERR6054674,ERR6054675
 
 # table test
-tmp_out=test_results
-kontiguity load -n "table test" -o $tmp_out --table $data_path/test_dataset.csv
+# tmp_out=test_results
+# kontiguity load -n "table test" -o $tmp_out --table $data_path/test_dataset.csv
 
 # # dtol test
 # kontiguity load -n dtol_test -o $outpath --dtol

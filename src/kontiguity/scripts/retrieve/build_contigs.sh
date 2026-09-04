@@ -11,6 +11,10 @@ threads=$8
 process_stmp=$9
 no_tmp=${10}
 
+local_path=$(realpath "$0")
+local_dir="${local_path%/*}"
+source "$local_dir/../lib/log.sh"
+
 logs=$outpath/logs
 if [ ! -d $outpath ];then
     mkdir $outpath
@@ -27,6 +31,7 @@ else
 fi
 
 if [ -f ${outpath}/contigs_${process_stmp}.fa ];then
+    log_info "[retrieve:$process_stmp] Contigs already retrieved at ${outpath}/contigs_${process_stmp}.fa"
     echo Contigs already retrieved at ${outpath}/contigs_${process_stmp}.fa > $logs/build_log.txt
 
     nb_sequences=$(cat $outpath/contigs_${process_stmp}.fa | grep -o ">" | wc -l)
@@ -40,12 +45,14 @@ else
 
     # 1. aligning assembly reads on reference genome and retrieving unmapped reads
     if [ "$is_paired" = "true" ]; then
+        log_info "[retrieve:$process_stmp] Aligning paired reads on $index"
         bowtie2 --un-conc $tmp_dir/unmapped.fastq -p $threads -x $index -1 $fastq_R1 -2 $fastq_R2 -S $tmp_dir/tmp_align.sam 1>$logs/build_log.txt 2>$logs/build_log.txt
         if [ "$no_tmp" = "true" ]; then
             rm $fastq_R1
             rm $fastq_R2
         fi
     else
+        log_info "[retrieve:$process_stmp] Aligning single-end reads on $index"
         bowtie2 --un $tmp_dir/unmapped.fastq -p $threads -x $index -U $fastq -S $tmp_dir/tmp_align.sam 1>>$logs/build_log.txt 2>>$logs/build_log.txt
         if [ "$no_tmp" = "true" ]; then
             rm $fastq
@@ -71,6 +78,7 @@ else
         rm -r $tmp_dir_assembly
     fi
 
+    log_info "[retrieve:$process_stmp] Assembling unmapped reads with megahit"
     if [ "$is_paired" = "true" ]; then
         megahit -t $threads -1 $tmp_dir/unmapped.1.fastq -2 $tmp_dir/unmapped.2.fastq -o $tmp_dir_assembly --min-contig-len $min_len 1>>$logs/build_log.txt 2>>$logs/build_log.txt
     else
@@ -86,4 +94,5 @@ else
 
     nb_sequences=$(cat $outpath/contigs_${process_stmp}.fa | grep -o ">" | wc -l)
     echo $nb_sequences contigs retrieved by build. >> $outpath/info.txt 
+    log_info "[retrieve:$process_stmp] $nb_sequences contigs assembled at $outpath/contigs_${process_stmp}.fa"
 fi

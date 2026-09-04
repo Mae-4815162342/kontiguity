@@ -3,6 +3,7 @@ from .retrieve import retrieve
 from .map import map
 from .describe import describe
 from kontiguity.utils.functions import *
+from kontiguity.utils.logging_setup import get_logger
 
 def next(step):
     """Returns the next step of the pipeline."""
@@ -44,12 +45,15 @@ def build_dataset(name, **args):
             contig_index += 1
         return pd.DataFrame.from_dict(rows)
 
-def pipeline(name, outpath, first_step = "load", last_step = "describe", **args):
+def pipeline(name, outpath, first_step = "load", last_step = "describe", verbose = False, **args):
     """
     Calls each method between the first and the last required step in the following order: load -> retrieve -> map -> describe.
     Provided **args must be the arguments of the first required step as described in the single commands.
     Will execute the commands sequentially, connecting each step with the next by the "table" argument. 
     """
+    logger = get_logger(outpath, verbose = verbose)
+    logger.info(f"pipeline: starting (name={name!r}, first_step={first_step}, last_step={last_step})")
+
     current_step = first_step
     dataset = ""
     build_arborescence(outpath)
@@ -62,15 +66,18 @@ def pipeline(name, outpath, first_step = "load", last_step = "describe", **args)
     while True:
         match current_step:
             case "load": # 1. Load dataset
-                dataset = load(name, outpath, **args)
+                dataset = load(name, outpath, verbose = verbose, **args)
             case "retrieve": # 2. Retrieve contigs
-                _ = retrieve(name, outpath, **args) if dataset is None else retrieve(name, outpath, table = dataset)
+                _ = retrieve(name, outpath, verbose = verbose, **args) if dataset is None else retrieve(name, outpath, table = dataset, verbose = verbose)
             case "map": # 3. Map contigs in Hi-C
-                _ = map(name, outpath, **args) if dataset is None else map(name, outpath, table = dataset)
+                _ = map(name, outpath, verbose = verbose, **args) if dataset is None else map(name, outpath, table = dataset, verbose = verbose)
             case "describe": # 4. Descriptive statistics on selected contigs
-                _ = describe(name, outpath, **args) if dataset is None else describe(name, outpath, table = dataset)
+                _ = describe(name, outpath, verbose = verbose, **args) if dataset is None else describe(name, outpath, table = dataset, verbose = verbose)
             case None:
                 break
+        logger.info(f"pipeline: completed step '{current_step}'")
         if current_step == last_step or current_step is None:
             break
         current_step = next(current_step)
+
+    logger.info(f"pipeline: done (name={name!r})")

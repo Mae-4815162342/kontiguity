@@ -12,9 +12,6 @@ description = "Eukaryotic contigs retrieval and classification tool."
 readme = "README.md"
 requires-python = ">=3.10"
 classifiers = [
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Operating System :: OS Independent",
     "Development Status :: 4 - Beta",
@@ -29,7 +26,8 @@ dependencies = [
   "pandas>=1.5.0",
   "cooler>=0.10.4",
   "requests>=2.34.2",
-  "hicstuff>3.2.5"
+  "pairtools<1.1.2",
+  "hicstuff>=3.2.5"
 ]
 
 [project.optional-dependencies]

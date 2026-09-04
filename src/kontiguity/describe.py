@@ -2,6 +2,7 @@ from kontiguity.utils.circularity import *
 from kontiguity.utils.functions import *
 from kontiguity.utils.displays import *
 from kontiguity.utils.imports import *
+from kontiguity.utils.logging_setup import get_logger
 
 
 def create_table(name, index, chroms, cool, mcool, binnings):
@@ -276,6 +277,7 @@ def describe(
     sbtach_qos = 'fast',
     sbtach_mem = '40G',
     sbatch_ncpus = 30,
+    verbose = False,
     **kwargs
 ):
     sbatch_params = {
@@ -284,6 +286,9 @@ def describe(
         '--mem': sbtach_mem,
         '-c': sbatch_ncpus
     }
+
+    logger = get_logger(outpath, verbose = verbose)
+    logger.info(f"describe: starting (name={name!r}, sbatch={sbatch})")
 
     build_arborescence(outpath)
 
@@ -396,3 +401,4 @@ def describe(
             ## writting signals
             signals_df = pd.DataFrame.from_dict(global_signals)
             signals_df.to_csv(f"{outfolder}/signals.{int(binning // 1000)}kb.csv")
+    logger.info(f"describe: done (name={name!r})")

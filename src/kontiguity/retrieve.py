@@ -1,4 +1,5 @@
 from kontiguity.utils.functions import *
+from kontiguity.utils.logging_setup import get_logger
 from kontiguity.workers import ScriptExecutor as scexec
 
 def create_table(name, index, WGSs, min_size = 1000):
@@ -17,11 +18,12 @@ def create_table(name, index, WGSs, min_size = 1000):
 
     return pd.DataFrame.from_dict(table_els)
 
-def retrieve_contigs(retrieval_dict, outpath, logan = False, no_tmp = False, threads = 8, sbatch = False, **sbatch_params):
+def retrieve_contigs(retrieval_dict, outpath, logan = False, no_tmp = False, threads = 8, sbatch = False, verbose = False, **sbatch_params):
     """Launches contigs retrieval."""
+    logger = get_logger(outpath, verbose = verbose)
 
     # building script
-    header = get_header(sbtach = sbatch, outpath = outpath, **sbatch_params)
+    header = get_header(sbtach = sbatch, outpath = outpath, verbose = verbose, **sbatch_params)
     path_to_scripts = "/".join(__file__.split('/')[:-1])
     logan_script = path_to_scripts + "/scripts/retrieve/logan.sh"
     build_contigs_script = path_to_scripts + "/scripts/retrieve/build_contigs.sh"
@@ -37,7 +39,7 @@ def retrieve_contigs(retrieval_dict, outpath, logan = False, no_tmp = False, thr
     # initialisations
     contigs_queue = Queue()
     workers = [
-        scexec.ScriptExecutorScheduler(contigs_queue, script) for _ in range(threads)
+        scexec.ScriptExecutorScheduler(contigs_queue, script, logger = logger) for _ in range(threads)
     ]
     
     # feading fastas to the input queue
@@ -72,13 +74,13 @@ def retrieve_contigs(retrieval_dict, outpath, logan = False, no_tmp = False, thr
 
             # fastq check
             ## if it is not a path to a file, will be looked for in the kontiguity arborescence. If still not found, will return the ref which will be considered as a SRA id for Logan.
-            paired_fastq = f"{outpath}/{species}/dataset/wgs/{row_data['fastq1']}_1.fastq.gz"
-            single_fastq = f"{outpath}/{species}/dataset/wgs/{row_data['fastq1']}.fastq.gz"
+            paired_fastq = f"{outpath}/{species}/dataset/wgs/{row_data['fastq1_wgs']}_1.fastq.gz"
+            single_fastq = f"{outpath}/{species}/dataset/wgs/{row_data['fastq1_wgs']}.fastq.gz"
 
             if os.path.exists(paired_fastq):
                 is_paired = "true"
                 fastq_R1  = paired_fastq
-                fastq_R2 = f"{outpath}/{species}/dataset/wgs/{row_data['fastq1']}_2.fastq.gz"
+                fastq_R2 = f"{outpath}/{species}/dataset/wgs/{row_data['fastq1_wgs']}_2.fastq.gz"
                 fastq = "."
             elif os.path.exists(single_fastq):
                 is_paired = "false"
@@ -141,6 +143,7 @@ def retrieve(
     sbtach_qos = 'fast',
     sbtach_mem = '40G',
     sbatch_ncpus = 30,
+    verbose = False,
     **kwargs
 ):
     sbatch_params = {
@@ -149,6 +152,9 @@ def retrieve(
         '--mem': sbtach_mem,
         '-c': sbatch_ncpus
     }
+
+    logger = get_logger(outpath, verbose = verbose)
+    logger.info(f"retrieve: starting (name={name!r}, sbatch={sbatch})")
 
     outfolder = f"{outpath}/{name.replace(' ', '_')}"
     build_arborescence(outfolder)
@@ -172,7 +178,8 @@ def retrieve(
 
     ## launching retrievers
     out_tmp = outpath if is_single_name else outfolder
-    retrievers = retrieve_contigs(subset_retrieval, outpath = out_tmp, logan = logan, no_tmp = no_tmp, threads = threads, sbatch = sbatch, **sbatch_params)
+    retrievers = retrieve_contigs(subset_retrieval, outpath = out_tmp, logan = logan, no_tmp = no_tmp, threads = threads, sbatch = sbatch, verbose = verbose, **sbatch_params)
 
     ### joining loaders
     join_workers(retrievers)
+    logger.info(f"retrieve: done (name={name!r})")

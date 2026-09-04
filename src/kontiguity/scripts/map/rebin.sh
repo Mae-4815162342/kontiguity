@@ -7,6 +7,10 @@ binnings=$4
 threads=$5
 no_tmp=$6
 
+local_path=$(realpath "$0")
+local_dir="${local_path%/*}"
+source "$local_dir/../lib/log.sh"
+
 if [ ! -d $outpath ];then
     mkdir $outpath
 fi
@@ -20,6 +24,7 @@ fi
 
 for binning in $binnings; do
 
+    log_info "[map:$name] Rebinning $name.$original_binning.cool at ${binning}bp"
     echo Rebinning $name.$original_binning.cool at $binning bp. >> $logs/mapping_log.txt
 
     cooler cload pairs \
@@ -41,6 +46,7 @@ for binning in $binnings; do
 done
 
 echo Cool matrix built and balanced for each binning "(${binnings})". >> $outpath/info.txt
+log_info "[map:$name] Rebinning complete for ($binnings)"
 
 if [ "$no_tmp" = "true" ]; then
     rm -r $tmp_dir

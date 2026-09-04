@@ -1,4 +1,5 @@
 from kontiguity.utils.functions import *
+from kontiguity.utils.logging_setup import get_logger
 from kontiguity.workers import ScriptExecutor as scexec
 
 def create_table(name, index, HICs, enzymes = "HinfI,DpnII", binnings = "5000", format = "cool"):
@@ -18,11 +19,12 @@ def create_table(name, index, HICs, enzymes = "HinfI,DpnII", binnings = "5000", 
 
     return pd.DataFrame.from_dict(table_els)
 
-def map_hics(hic_dict, outpath, no_tmp = False, threads = 8, sbatch = False, **sbatch_params):
+def map_hics(hic_dict, outpath, no_tmp = False, threads = 8, sbatch = False, verbose = False, **sbatch_params):
     """Launches Hi-C mapping."""
+    logger = get_logger(outpath, verbose = verbose)
 
     # building script
-    header = get_header(sbtach = sbatch, outpath = outpath, **sbatch_params)
+    header = get_header(sbtach = sbatch, outpath = outpath, verbose = verbose, **sbatch_params)
 
     path_to_scripts = "/".join(__file__.split('/')[:-1])
     generate_cool_script = path_to_scripts + "/scripts/map/generate_cool.sh"
@@ -41,7 +43,7 @@ def map_hics(hic_dict, outpath, no_tmp = False, threads = 8, sbatch = False, **s
     # initialisations
     hic_queue = Queue()
     workers = [
-        scexec.ScriptExecutorScheduler(hic_queue, script) for _ in range(threads)
+        scexec.ScriptExecutorScheduler(hic_queue, script, logger = logger) for _ in range(threads)
     ]
     
     # feading fastas to the input queue
@@ -75,10 +77,10 @@ def map_hics(hic_dict, outpath, no_tmp = False, threads = 8, sbatch = False, **s
 
             # fastq check
             ## if it is not a path to a file, will be looked for in the kontiguity arborescence.
-            paired_fastq = f"{outpath}/{species}/dataset/hic/{row_data['fastq1']}_1.fastq.gz"
+            paired_fastq = f"{outpath}/{species}/dataset/hic/{row_data['fastq1_hic']}_1.fastq.gz"
             if os.path.exists(paired_fastq):
                 hic_R1  = paired_fastq
-                hic_R2 = f"{outpath}/{species}/dataset/hic/{row_data['fastq1']}_2.fastq.gz"
+                hic_R2 = f"{outpath}/{species}/dataset/hic/{row_data['fastq1_hic']}_2.fastq.gz"
             else:
                 hic_R1= "." if len(row_data["fastq1_hic"]) == 0 else row_data["fastq1_hic"]
                 hic_R2= "." if len(row_data["fastq2_hic"]) == 0 else row_data["fastq2_hic"]
@@ -139,6 +141,7 @@ def map(
     sbtach_qos = 'fast',
     sbtach_mem = '40G',
     sbatch_ncpus = 30,
+    verbose = False,
     **kwargs
 ):
     sbatch_params = {
@@ -147,6 +150,9 @@ def map(
         '--mem': sbtach_mem,
         '-c': sbatch_ncpus
     }
+
+    logger = get_logger(outpath, verbose = verbose)
+    logger.info(f"map: starting (name={name!r}, sbatch={sbatch})")
 
     outfolder = f"{outpath}/{name.replace(' ', '_')}"
     build_arborescence(outfolder)
@@ -171,7 +177,8 @@ def map(
 
     ## launching retrievers
     out_tmp = outpath if is_single_name else outfolder
-    retrievers = map_hics(subset_hic, outpath = out_tmp, no_tmp = no_tmp, threads = threads, sbatch = sbatch, **sbatch_params)
+    retrievers = map_hics(subset_hic, outpath = out_tmp, no_tmp = no_tmp, threads = threads, sbatch = sbatch, verbose = verbose, **sbatch_params)
 
     ### joining loaders
     join_workers(retrievers)
+    logger.info(f"map: done (name={name!r})")

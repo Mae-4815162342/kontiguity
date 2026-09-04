@@ -20,20 +20,24 @@ class FastaFormater():
             'sequence_name':sequence_type[1]
         }
 
-    def format_fasta(self, fasta_path, outfolder):
+    def format_fasta(self, fasta_path, species, outfolder):
         """Writes a new fasta file keeping only the sequences with the set sequence types. Writes the chromosomes infos in a tsv file."""
         chromosome_infos = []
         chrom_file = None
         chromosomes = []
         batched_lines = []
-        fasta_name = fasta_path.split('/')[-1][:-len(".all_seqs.fa")]
-        output_fasta = open(outfolder + f"/{fasta_name}.filtered.fa", "w")
+        fasta_name = fasta_path.split('/')[-1]
+        if ".all_seqs.fa" in fasta_name:
+            fasta_name = fasta_name[:-len(".all_seqs.fa")]
+        else:
+            fasta_name = fasta_name.split('.')[0]
+        output_fasta = open(outfolder + f"/{species}.filtered.fa", "w")
         has_chrom_info = os.path.isfile(f"{outfolder}/{fasta_name}.chromosomes.csv") or os.path.isfile(f"{outfolder}/chromosomes.csv")
 
         if has_chrom_info:
             if os.path.isfile(f"{outfolder}/chromosomes.csv"):
-                shutil.copyfile(f"{outfolder}/chromosomes.csv", f"{outfolder}/{fasta_name}.chromosomes.csv")
-            chrom_file = pd.read_csv(f"{outfolder}/{fasta_name}.chromosomes.csv")
+                shutil.copyfile(f"{outfolder}/chromosomes.csv", f"{outfolder}/{species}.chromosomes.csv")
+            chrom_file = pd.read_csv(f"{outfolder}/{species}.chromosomes.csv")
             chromosomes = np.unique(chrom_file['id'])
 
         with open(fasta_path, "r") as fasta:
@@ -66,11 +70,12 @@ class FastaFormater():
             chromosome_infos_df = pd.DataFrame.from_dict(chromosome_infos)
             chromosome_infos_df.to_csv(outfolder + f"/{fasta_name}.chromosomes.csv", sep=',')
 
-        return outfolder + f"/{fasta_name}.filtered.fa"
+        return outfolder + f"/{species}.filtered.fa"
 
 fasta = sys.argv[1]
-sequence_types = sys.argv[2].split(',')
-outfolder = sys.argv[3]
+species = sys.argv[2]
+sequence_types = sys.argv[3].split(',')
+outfolder = sys.argv[4]
 
 formater = FastaFormater(sequence_types = sequence_types)
-formater.format_fasta(fasta, outfolder)
+formater.format_fasta(fasta, species, outfolder)

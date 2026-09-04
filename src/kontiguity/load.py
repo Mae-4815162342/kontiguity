@@ -1,4 +1,5 @@
 from kontiguity.utils.functions import *
+from kontiguity.utils.logging_setup import get_logger
 from kontiguity.workers import ScriptExecutor as scexec
 from kontiguity.workers.DToLScrapper import DToLScrapperScheduler
 from kontiguity.workers.DToLFormater import DToLFormaterScheduler
@@ -151,10 +152,12 @@ def load_dtol(nb_per_page=100, threads=8):
     species_df = pd.DataFrame.from_dict(table)    
     return species_df
 
-def load_ref(ref_dict, outpath, chroms = None, threads = 8, sequence_types = 'chromosome,organelle', sbatch = False, **sbatch_params):
+def load_ref(ref_dict, outpath, chroms = None, threads = 8, sequence_types = 'chromosome,organelle', sbatch = False, verbose = False, **sbatch_params):
     """Builds the arborescence and eventualy retrieve fastas from the GCA database before building bowtie indexes."""
+    logger = get_logger(outpath, verbose = verbose)
+
     # building script
-    header = get_header(sbtach = sbatch, outpath = outpath, **sbatch_params)
+    header = get_header(sbtach = sbatch, outpath = outpath, verbose = verbose, **sbatch_params)
     path_to_scripts = "/".join(__file__.split('/')[:-1])
     load_ref_script = path_to_scripts + "/scripts/loaders/load_ref.sh"
     format_ref_script = path_to_scripts + "/scripts/loaders/format_ref.sh"
@@ -165,7 +168,7 @@ def load_ref(ref_dict, outpath, chroms = None, threads = 8, sequence_types = 'ch
     # initialisations
     genome_queue = Queue()
     workers = [
-        scexec.ScriptExecutorScheduler(genome_queue, script) for _ in range(threads)
+        scexec.ScriptExecutorScheduler(genome_queue, script, logger = logger) for _ in range(threads)
     ]
 
     indexes = {}
@@ -215,10 +218,12 @@ def load_ref(ref_dict, outpath, chroms = None, threads = 8, sequence_types = 'ch
 
     return workers, indexes
 
-def load_fastqs(fastq_dict, outpath, experiment, threads = 8, sbatch = False, **sbatch_params):
+def load_fastqs(fastq_dict, outpath, experiment, threads = 8, sbatch = False, verbose = False, **sbatch_params):
     """Builds the arborescence and eventualy retrieve fastq files with fasterq-dump before splitting in subfastqs."""
+    logger = get_logger(outpath, verbose = verbose)
+
     # building script
-    header = get_header(sbtach = sbatch, outpath = outpath, **sbatch_params)
+    header = get_header(sbtach = sbatch, outpath = outpath, verbose = verbose, **sbatch_params)
     path_to_scripts = "/".join(__file__.split('/')[:-1])
     load_fastq_script = path_to_scripts + "/scripts/loaders/load_fastq.sh"
     scripts_outpath = f"{outpath}/scripts"
@@ -228,7 +233,7 @@ def load_fastqs(fastq_dict, outpath, experiment, threads = 8, sbatch = False, **
     # initialisations
     fastq_queue = Queue()
     workers = [
-        scexec.ScriptExecutorScheduler(fastq_queue, script) for _ in range(threads)
+        scexec.ScriptExecutorScheduler(fastq_queue, script, logger = logger) for _ in range(threads)
     ]
     fastqs_refs = {}
 
@@ -250,7 +255,6 @@ def load_fastqs(fastq_dict, outpath, experiment, threads = 8, sbatch = False, **
             else:
                 fastq1 = fastq_dict[ref][k]
                 fastq2 = ""
-                paired = not os.path.isfile(fastq1)
 
             # scripts to call
             to_load1 = "true" if not os.path.isfile(fastq1) else 'none'
@@ -304,6 +308,7 @@ def load(
     sbtach_qos = 'fast',
     sbtach_mem = '40G',
     sbatch_ncpus = 30,
+    verbose = False,
     **kwargs
 ):
     sbatch_params = {
@@ -312,6 +317,9 @@ def load(
         '--mem': sbtach_mem,
         '-c': sbatch_ncpus
     }
+
+    logger = get_logger(outpath, verbose = verbose)
+    logger.info(f"load: starting (name={name!r}, sbatch={sbatch})")
 
     outfolder = f"{outpath}/{name.replace(' ', '_')}"
     build_arborescence(outfolder)
@@ -344,9 +352,9 @@ def load(
 
     ## launching loaders
     outtmp = outpath if is_single_name else outfolder
-    ref_loaders, indexes = load_ref(subset_ref, outpath = outtmp, chroms = chroms, threads = threads, sbatch = sbatch, **sbatch_params) if ref is not None or dtol or table is not None else ([], {})
-    wgs_loaders, wgs_fastqs = load_fastqs(subset_wgs, outpath = outtmp, experiment='wgs', threads = threads, sbatch = sbatch, **sbatch_params) if not no_wgs else ([], {})
-    hic_loaders, hic_fastqs = load_fastqs(subset_hic, outpath = outtmp, experiment='hic', threads = threads, sbatch = sbatch, **sbatch_params) if not no_hic else ([], {})
+    ref_loaders, indexes = load_ref(subset_ref, outpath = outtmp, chroms = chroms, threads = threads, sbatch = sbatch, verbose = verbose, **sbatch_params) if ref is not None or dtol or table is not None else ([], {})
+    wgs_loaders, wgs_fastqs = load_fastqs(subset_wgs, outpath = outtmp, experiment='wgs', threads = threads, sbatch = sbatch, verbose = verbose, **sbatch_params) if not no_wgs else ([], {})
+    hic_loaders, hic_fastqs = load_fastqs(subset_hic, outpath = outtmp, experiment='hic', threads = threads, sbatch = sbatch, verbose = verbose, **sbatch_params) if not no_hic else ([], {})
 
     ### joining loaders
     join_workers(ref_loaders)
@@ -356,5 +364,7 @@ def load(
     ## creating dataset for other methods usage
     dataset = build_dataset(names, indexes, wgs_fastqs, hic_fastqs, **kwargs)
     dataset.to_csv(f"{outfolder}/dataset.csv")
+
+    logger.info(f"load: done (name={name!r})")
 
     return f"{outfolder}/dataset.csv"

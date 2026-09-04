@@ -83,6 +83,13 @@ import kontiguity.retrieve as kretrieve
     help="minimum amount of real memory requested for sbatch."
 )
 @click.option(
+    "-v",
+    "--verbose",
+    is_flag=True,
+    default=False,
+    help="if selected, also prints log messages to the terminal in addition to the run's log file (which is always written). Off by default to avoid crowding the terminal on large datasets."
+)
+@click.option(
     "--sbatch_ncpus",
     default=30,
     type=int,
