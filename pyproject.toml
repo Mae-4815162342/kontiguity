@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "kontiguity"
-version = "0.0.2"
+version = "0.1.0"
 authors = [
   { name="Maelys Delouis", email="maelys.delouis@pasteur.fr" },
 ]
@@ -12,9 +12,6 @@ description = "Eukaryotic contigs retrieval and classification tool."
 readme = "README.md"
 requires-python = ">=3.10"
 classifiers = [
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Operating System :: OS Independent",
     "Development Status :: 4 - Beta",
@@ -24,12 +21,17 @@ classifiers = [
 license = {text = "CC BY-NC 4.0"}
 license-files = ["LICENSE"]
 dependencies = [
-  "click>=8.4.2",
+  "click>=8.1",
   "numpy",
+  "scipy",
   "pandas>=1.5.0",
+  "h5py",
+  "networkx>=3.0",
+  "matplotlib",
+  "pyyaml",
+  "requests>=2.31",
   "cooler>=0.10.4",
-  "requests>=2.34.2",
-  "hicstuff>3.2.5"
+  "hicstuff>=3.2.5"
 ]
 
 [project.optional-dependencies]
@@ -61,12 +63,8 @@ addopts = [
     "-ra",
     "--strict-config",
     "--strict-markers",
-    "--cov=hicue",
-    "--cov-config=pyproject.toml",
-    "--cov-report=term-missing",
-    "--cov-report=html",
-    "--cov-report=xml",
 ]
+# coverage (needs pytest-cov): pytest --cov=kontiguity --cov-report=term-missing
 filterwarnings = ["ignore::PendingDeprecationWarning"]
 testpaths = ["tests"]
 
@@ -85,7 +83,7 @@ Homepage = "https://github.com/Mae-4815162342/kontiguity"
 Issues = "https://github.com/Mae-4815162342/kontiguity/issues"
 
 [project.scripts]
-kontiguity = "kontiguity.cli.cli:cli"
+kontiguity = "kontiguity.cli.main:cli"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/kontiguity"]

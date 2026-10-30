@@ -1,0 +1,2 @@
+#!/bin/bash
+sed "s/\\t/|/" "${FAKE_SLURM_DIR}/states" | sed "s/\t/|/"

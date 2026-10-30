@@ -1,0 +1,33 @@
+name: kontiguity
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python=3.11
+  # read download
+  - wget
+  - sra-tools>=3.0        # fasterq-dump (used on local .sra files only, no prefetch)
+  - zstd                  # Logan contigs
+  - pigz
+  # retrieve / filter
+  - minimap2>=2.24
+  - samtools>=1.17
+  - bowtie2
+  - megahit
+  - flye>=2.9
+  # map
+  - hicstuff>=3.2.5
+  - cooler>=0.10
+  # python
+  - numpy
+  - scipy
+  - pandas
+  - h5py
+  - networkx>=3
+  - matplotlib
+  - pyyaml
+  - requests
+  - click
+  - pip
+  - pip:
+      - kontiguity

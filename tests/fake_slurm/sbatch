@@ -1,0 +1,9 @@
+#!/bin/bash
+# fake sbatch for tests: logs the call, runs the job script synchronously (dependencies are always earlier jobs)
+dep=""; script=""
+for a in "$@"; do case "$a" in --dependency=*) dep="${a#--dependency=}";; --parsable) ;; *) script="$a";; esac; done
+n=$(( $(cat "${FAKE_SLURM_DIR}/counter" 2>/dev/null || echo 1000) + 1 )); echo $n > "${FAKE_SLURM_DIR}/counter"
+echo -e "$n\t$dep\t$script" >> "${FAKE_SLURM_DIR}/submitted.tsv"
+log=$(grep -- "--output=" "$script" | sed 's/.*--output=//; s/%j/'$n'/')
+SLURM_CPUS_PER_TASK=2 bash "$script" > "$log" 2>&1 && echo "$n\tCOMPLETED" >> "${FAKE_SLURM_DIR}/states" || echo "$n\tFAILED" >> "${FAKE_SLURM_DIR}/states"
+echo "$n"
